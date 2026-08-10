@@ -30,10 +30,14 @@ Already implemented: the streaming document model, a layout engine with Unicode-
 and tables, ANSI and plain-text backends, terminal capability detection, and a CLI that behaves
 correctly in pipes.
 
-Measured: **3.4 ms** startup, and **1.42 MB** of own memory while walking a 488 MB log.
+Measured: **3.9 ms** startup, and **1.4 MB** of own memory while walking a 488 MB log.
 
-Next up is M1: JSON, YAML, TOML, XML, CSV, syntax-highlighted source code, and logs with
-severity levels. The full roadmap is in [`docs/DESIGN.md`](docs/DESIGN.md) §11.
+**M1 is under way.** The layered format- and encoding-detection engine has landed, so `termdoc`
+already recognizes JSON, YAML, TOML, XML, HTML, CSV, source code, PDF and the Office/ZIP family, and
+decodes non-UTF-8 files correctly. The dedicated readers for those formats are next; until each one
+lands, a recognized-but-unreadable text format is shown as plain text with a warning.
+
+The full roadmap is in [`docs/DESIGN.md`](docs/DESIGN.md) §11.
 
 ```bash
 cargo build --release
@@ -57,8 +61,9 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-The architecture is documented in [`docs/DESIGN.md`](docs/DESIGN.md), and the notes for working
-in this repository are in [`CLAUDE.md`](CLAUDE.md).
+The architecture is documented in [`docs/DESIGN.md`](docs/DESIGN.md), the notes for working in this
+repository are in [`CLAUDE.md`](CLAUDE.md), and [`docs/HANDOFF.md`](docs/HANDOFF.md) records where
+the work stands and what comes next.
 
 ## License
 

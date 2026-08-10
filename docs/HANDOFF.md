@@ -1,0 +1,230 @@
+# Handoff
+
+> For whoever picks this up next, human or agent.
+> Written 2026-08-10. The last code change was `307f822`; this document is the commit after it.
+
+Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
+[`DESIGN.md`](DESIGN.md) when you need the *why* behind a structure.
+
+---
+
+## 1. Where things stand, in one screen
+
+```
+M0  ████████████████████  complete   Markdown, plain text, logs
+M1  █████░░░░░░░░░░░░░░░  ~25%       detection + encoding landed; readers pending
+M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
+M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
+M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
+M5  ░░░░░░░░░░░░░░░░░░░░             PPTX, XLSX, Jupyter, SVG, math
+```
+
+| | |
+|---|---|
+| Repo | `git@github.com:marturojt/termdoc.git`, branch `main`, everything pushed |
+| Commits | 4, history is clean and in English |
+| Code | ~10,100 lines across 7 crates |
+| Tests | **258**, all green |
+| Lint | `clippy -D warnings` clean, `fmt` clean |
+| CI | 6 jobs green on Linux/macOS/**Windows** |
+| Startup | 3.9 ms (budget 10) |
+| Own memory | 1.4 MB with 488 MB of input (budget 50 MB) |
+
+**Everything is committed and pushed.** The working tree is clean; there is no
+half-finished edit to reconstruct.
+
+### What works from the command line today
+
+```bash
+termdoc README.md              # colorized, wrapped, tables aligned
+termdoc README.md | head -40   # clean stream, dies with signal 13 like cat
+cat README.md | termdoc        # detected by content, no filename needed
+termdoc --explain odd.dat      # why that format, and which layers lost
+termdoc --encoding latin1 x.txt
+termdoc --ascii --width 40 t.md
+```
+
+Readers exist for **Markdown, plain text and logs**. Detection recognizes far more (JSON, YAML,
+TOML, XML, HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+without its own reader falls back to plain text with a warning on stderr. That fallback is
+deliberate, not an oversight — see §4.
+
+---
+
+## 2. Do this first
+
+Five minutes to confirm nothing rotted, and it doubles as a tour:
+
+```bash
+cargo test --workspace                                   # expect 258 passing
+cargo clippy --workspace --all-targets -- -D warnings    # expect silence
+cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
+target/release/termdoc corpus/basic.md                   # expect colors and a table
+target/release/termdoc --explain corpus/tables.md        # expect a candidate list
+```
+
+If `cargo test` fails on a snapshot, `git diff crates/termdoc-cli/tests/snapshots/` says what
+changed. If it fails anywhere else, that is a real regression and not an environment problem — this
+suite has no known flakiness.
+
+---
+
+## 3. What to do next
+
+The remaining M1 work, in the order I would keep. The tracked task list has these as items 11–14.
+
+### 11. Structured data readers — JSON, YAML, TOML, XML  ← start here
+
+A new `crates/termdoc-read-data/` depending only on `termdoc-core`. Dependencies already vetted and
+pinned in the workspace manifest comments: `serde_json` 1.0, `yaml-rust2` 0.11, `toml` 1.1,
+`quick-xml` 0.41.
+
+Points worth deciding deliberately rather than by default:
+
+- **What "rendering" JSON means.** Almost certainly pretty-printing with indentation, keys in one
+  theme role and scalars in another. `Tag::Preformatted` plus styled `Text` is likely enough; you
+  probably do **not** want `CodeBlock`, because that will later imply syntax highlighting on top of
+  structure you already understand.
+- **Whether to stream.** `serde_json` on a 2 GB file will materialize it. There is a real decision
+  here between "correct and simple" and "streaming", and the honest first move is simple, with the
+  streaming path noted for later. Do not silently claim streaming in `ReaderCaps`.
+- **YAML with `yaml-rust2`** is a low-level event parser, which fits the event model well. Do not
+  reach for a `serde` DOM out of habit — and read the warning in §9 of DESIGN.md before touching any
+  YAML crate.
+
+### 12. CSV as a table
+
+Emit `Tag::Table` and reuse the layout's width allocation — the interesting work is already done and
+already tested. `termdoc_detect::detect_delimiter` gives you the delimiter and column count.
+
+**This one can stream** (row by row), and it is worth doing so: a million-row CSV is a realistic
+input. The catch is that `TableBuilder` buffers the whole table to allocate widths, so a huge CSV
+needs either a row cap with an honest warning or a two-pass approach. Decide and document it.
+
+### 13. Syntax highlighting
+
+`syntect` 5.3 with `two-face` 0.5 (which bundles `bat`'s assets). Two jobs:
+
+- A reader for source files (`FormatId::SourceCode`).
+- A `Transform` over `CodeBlock` so fenced Markdown blocks get highlighted too.
+
+**The startup budget is the whole difficulty.** Load assets lazily from the binary dump, only when a
+code block actually appears. If `perf-gate.py` shows startup crossing 10 ms, the laziness is wrong —
+that gate exists precisely to catch this.
+
+`termdoc_detect::language_for(&src)` already resolves the grammar name from the extension, the
+filename or the shebang.
+
+### 14. Log reader and incremental stdin
+
+Timestamp and severity recognition with per-level highlighting. `termdoc-detect` already recognizes
+ISO-8601, bare clocks and syslog shapes in `structural.rs::starts_with_timestamp` — reuse that
+rather than writing a second parser.
+
+This is also where **incremental stdin** finally matters, and it is the one known limitation to
+retire: `Source::from_stdin` buffers everything today (documented in `source.rs`). Until it is
+incremental, `kubectl logs -f | termdoc` cannot work. Expect this to be the hardest item, because it
+means an input path that is not a single `&[u8]`, and `Events<'a>` borrows from exactly that.
+
+---
+
+## 4. Decisions already made — do not silently re-decide these
+
+Each one has a reason and a test. Overturn them if you have a better argument, but do it explicitly
+and update DESIGN.md.
+
+| Decision | Why | Where |
+|---|---|---|
+| Event stream, not an AST | Memory and huge files; a tree can be built from a stream, not the reverse | §2.2 |
+| `Line` lives in `core`, not `layout` | It is the layout→backend contract, so the backend need not depend on layout | §13 |
+| Grapheme integrity outranks the width limit | A ZWJ emoji is 2 cells and indivisible; splitting it makes garbage and does not fix the overflow | `wrap.rs` header |
+| YAML may not claim STRUCTURAL confidence | `key: value` is indistinguishable from a Markdown options list; it would render READMEs as YAML | `structural.rs` header |
+| CSV by delimiter variance, with a Markdown-table veto | Prose has commas; a GFM table has perfectly consistent pipes | `delimited.rs` |
+| Flags beat the environment (`--color always` > `NO_COLOR`) | Ecosystem convention: ripgrep, bat, delta | `integration.rs` |
+| Detected-but-unreadable degrades to plain text | Mid-roadmap, showing a `.json` as text beats refusing it | `run.rs::pick_reader` |
+| Budget anonymous memory, not RSS | With `mmap`, RSS tracks file size through clean page-cache pages the process does not own | §8 |
+| The TSV table rung gives up on width | Truncating loses data; that output is for `cut`/`awk`, not for reading | `table.rs` |
+| Readers register no detectors | Otherwise detection order depends on which readers are compiled in | `read-text/src/lib.rs` |
+
+---
+
+## 5. Traps already paid for
+
+These cost real debugging time. They are all fixed; this list exists so they are not rediscovered.
+
+1. **`encoding_rs::decode` does BOM sniffing and overrides the encoding you asked for.** `FF FE` is
+   a UTF-16LE BOM, so a UTF-8 source starting with those bytes got reinterpreted wholesale. Use
+   `decode_without_bom_handling`.
+2. **`infer` recognizes textual formats.** It answers `text/xml` for an XML declaration, and claiming
+   that as binary at confidence 90 outranked the layer that can actually read it.
+3. **Tests sharing a temp fixture path race.** Cargo parallelizes; one test opened a file in the
+   instant another had truncated it to zero. The symptom looked like a detection bug. Use a
+   per-call unique directory.
+4. **`pulldown-cmark` emits the table header as bare cells**, with no wrapping `TableRow`. Without
+   opening one on `TableHead`, the header gets no bold and no separator row.
+5. **`.gitattributes` precedence is last-rule-wins.** A general rule placed after the exceptions
+   silently normalized the corpus, and `corpus/plain.txt` deliberately contains a CRLF line.
+6. **CI's clippy can be newer than the local toolchain.** With `-D warnings` that is a hard failure,
+   so a green local clippy proves nothing. Read the CI log.
+7. **Rust ignores `SIGPIPE`.** Without the `SIG_DFL` reset, `| head` panics. This is the single most
+   important line in `main`.
+8. **A reader that validates UTF-8 itself** throws away the encoding detection already did — latin-1
+   rendered as replacement characters even though the right answer was known.
+
+---
+
+## 6. Open questions for the owner
+
+Neither blocks progress, but both are cheaper to settle sooner.
+
+1. **Streaming versus simplicity for the data readers.** `serde_json` materializes; a streaming JSON
+   reader is real work. My inclination is simple first, `ReaderCaps.streaming = false` honestly set,
+   and revisit if someone actually views a huge JSON file. Worth a decision rather than a default.
+2. **Publishing to crates.io.** Seven crates would all need publishing, and `1.0` is deliberately
+   gated on the plugin protocol and document model freezing (§11). Nothing forces this now, but
+   names on crates.io are first-come.
+
+---
+
+## 7. Environment notes for this machine
+
+- **Rust 1.96.1 from Homebrew, and no `rustup`.** So no `rustup update`, and no cross-compiling to
+  verify Windows locally — CI is the only Windows check. This is also why CI's clippy can be ahead.
+- **`cargo-insta` is not installed.** Accept snapshots with `INSTA_UPDATE=always cargo test -p
+  termdoc-cli --test snapshots`, then **read `git diff` on the snapshot directory**. Accepting
+  blindly defeats the point of having them.
+- **`gh` 2.96 is available and authenticated**, which is how CI runs get watched.
+- **`corpus/huge.log` is gitignored** (122 MB). `./scripts/gen-corpus.sh` regenerates it; the perf
+  gate creates a smaller one on demand if it is missing.
+- `hyperfine` is not installed and is not needed: `scripts/perf-gate.py` does its own timing.
+
+---
+
+## 8. How the docs relate
+
+```
+README.md         what termdoc is, for someone who just found it
+CLAUDE.md         how to work in this repo: commands, invariants, gotchas
+docs/DESIGN.md    the architecture and every non-obvious decision, with section numbers
+docs/HANDOFF.md   this file: state, next steps, and what not to re-decide
+```
+
+`DESIGN.md` is the source of truth for structure. It has been **corrected twice** as implementation
+found defects in it (§2.2 on the event model, §8 on the memory metric, §13 on the deviations), and
+that is the intended relationship: when code and design disagree, one of them changes on purpose and
+the reason gets written down.
+
+---
+
+## 9. What I would want to know if I were you
+
+- The test suite is the actual specification. When unsure whether a behavior is intended, search the
+  tests before reading the implementation — they carry the reasoning in their names and comments.
+- The five test levels exist to tell failures apart. If a heading renders wrong, the event goldens
+  say whether the reader misread it or the layout mislaid it, which saves guessing.
+- `--explain` is the debugging tool for anything detection-related. It shows every layer's opinion,
+  including the losers, and each one carries a human-readable reason.
+- The design's section numbers are cited from code comments on purpose. If you change a decision,
+  grep for the section number to find every place that leans on it.
+- Do not trust a passing `clippy` locally as a green light for CI, and do not push a snapshot diff
+  you have not read.

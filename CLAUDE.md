@@ -2,13 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-`termdoc` is a universal document viewer for the terminal, written in Rust. It reads any
-document and renders it as well as the terminal allows, degrading based on the terminal's real
-capabilities. It is not an editor, not a converter, and not an IDE.
+`termdoc` is a universal document viewer for the terminal, written in Rust. It reads any document
+and renders it as well as the terminal allows, degrading based on the terminal's real capabilities.
+It is not an editor, not a converter, and not an IDE.
 
-**The full design lives in [`docs/DESIGN.md`](docs/DESIGN.md) and is the source of truth.**
-Read it before changing architecture. Status: **M0 complete**, **M1 in progress** — detection and
-encoding handling have landed, the data readers have not. The milestone roadmap is in §11.
+**Two documents outrank this one:**
+
+- [`docs/DESIGN.md`](docs/DESIGN.md) — the architecture and the reasoning behind it. **Read it
+  before changing anything structural.** Its section numbers are referenced throughout this file.
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
+  already paid for. **Read it first if you are picking this up mid-stream.**
+
+Status: **M0 complete**, **M1 in progress** — detection and encoding landed; the data, code and log
+readers have not. Roadmap in `docs/DESIGN.md` §11.
 
 Code, comments, test names and user-facing messages are all in **English**.
 
@@ -17,17 +23,19 @@ Code, comments, test names and user-facing messages are all in **English**.
 ```bash
 cargo test --workspace                          # 258 tests
 cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc
 cargo run -q -- corpus/basic.md                 # run against the corpus
 
 # A single test, or one test file
 cargo test -p termdoc-layout wrap::tests::breaks_at_word_boundaries
+cargo test -p termdoc-detect delimited          # every delimiter test
 cargo test -p termdoc-cli --test integration
 cargo test -p termdoc-read-text --test events
 
-# Snapshots: review and accept changes (needs cargo-insta)
-cargo insta review
-INSTA_UPDATE=always cargo test -p termdoc-cli --test snapshots   # accept in bulk
+# Snapshots. cargo-insta is NOT installed here, so accept in bulk and review the diff by hand:
+INSTA_UPDATE=always cargo test -p termdoc-cli --test snapshots
+git diff crates/termdoc-cli/tests/snapshots/    # <- actually read this before committing
 
 # Pathological corpus (not versioned, because of its size)
 ./scripts/gen-corpus.sh
@@ -36,15 +44,14 @@ INSTA_UPDATE=always cargo test -p termdoc-cli --test snapshots   # accept in bul
 cargo build --release && python3 scripts/perf-gate.py
 ```
 
-CI (`.github/workflows/ci.yml`) runs the tests on Linux/macOS/Windows, plus `fmt`, `clippy`,
-each layer compiled separately, and the performance gates.
+CI (`.github/workflows/ci.yml`) runs the tests on Linux/macOS/Windows, plus `fmt`, `clippy`, each
+layer compiled separately, and the performance gates. Watch a run with
+`gh run watch <id> --exit-status`.
 
-**CI's clippy may be newer than your local one** and `RUSTFLAGS: -D warnings` makes any new lint a
-hard failure, so a green local `clippy` is not a guarantee. If lint fails in CI but passes locally,
-that is the reason — read the CI log rather than trying to reproduce it. Keeping the local
-toolchain current (`rustup update`) avoids the round trip. The CI thresholds are looser than the
-design's because a shared machine is slower and an intermittent gate is worse than no gate; they
-are still tight enough to catch a real regression, which would be an order of magnitude.
+**CI's clippy may be newer than the local toolchain** (this machine has Homebrew Rust 1.96.1 and no
+`rustup`), and `RUSTFLAGS: -D warnings` makes any new lint a hard failure. A green local `clippy` is
+therefore not a guarantee. If lint fails in CI but passes locally, that is why — read the CI log with
+`gh run view <id> --log-failed` instead of trying to reproduce it.
 
 ## Architecture
 
@@ -61,9 +68,9 @@ module that sees all of them at once is `crates/termdoc-cli/src/run.rs`, where t
 
 **1. The document model is an event stream, not a tree.**
 `Event::Start(Tag)` / `End(TagKind)` plus leaf events, with `Cow<'a, str>` borrowing from the
-`mmap`. That is why a 488 MB log is read with 1.4 MB of own memory. If you materialize a tree
-along the way, that property is gone. Anything needing random access (TOC, table widths) is
-materialized locally, never the whole document.
+`mmap`. That is why a 488 MB log is read with 1.4 MB of own memory. If you materialize a tree along
+the way, that property is gone. Anything needing random access (TOC, table widths) is materialized
+locally, never the whole document. (§2.2)
 
 **2. The layering is enforced by Cargo's graph, not by discipline.**
 
@@ -77,19 +84,19 @@ termdoc-read-*     → core            core ONLY: a reader cannot see a backend
 termdoc-cli        → everything      the wiring
 ```
 
-`crates/termdoc-cli/tests/layering.rs` reads the `Cargo.toml` files and fails if a new edge
-appears. If you genuinely need one, update `docs/DESIGN.md` §3 and that test's `ALLOWED` table,
-and explain why.
+`crates/termdoc-cli/tests/layering.rs` reads the `Cargo.toml` files and fails if a new edge appears.
+If you genuinely need one, update `docs/DESIGN.md` §3 and that test's `ALLOWED` table, and explain
+why. (§3)
 
-`Line` lives in `core` rather than `layout` on purpose: it is the layout→backend contract, just
-as `Event` is the reader→layout contract. That is what keeps `termdoc-backend` from depending on
-the layout engine.
+`Line` lives in `core` rather than `layout` on purpose: it is the layout→backend contract, just as
+`Event` is the reader→layout contract. That is what keeps `termdoc-backend` from depending on the
+layout engine.
 
 **3. Degradation is an input, not a chain of `if`s.**
 `termdoc_term::Fidelity` (color, unicode, graphics, hyperlinks) is fed into the layout and the
-backend. Every rung is pinned down by snapshots in `crates/termdoc-cli/tests/snapshots/`.
-Ladders implemented so far: color truecolor→256→16→none; tables box-drawing→ASCII→TSV; links
-OSC 8→`[n]` references; headings styled→ATX notation.
+backend. Every rung is pinned by snapshots in `crates/termdoc-cli/tests/snapshots/`. Ladders
+implemented so far: color truecolor→256→16→none; tables box-drawing→ASCII→TSV; links OSC 8→`[n]`
+references; headings styled→ATX notation. (§5)
 
 ### Invariants the tests protect
 
@@ -99,21 +106,24 @@ Do not break these without changing the design first:
   `termdoc huge.log | head -5` ends in a panic instead of dying with signal 13 like `cat`. It is
   M0's most important criterion (`tests/integration.rs`).
 - **In a pipe, stdout carries only the document.** Warnings and diagnostics go to stderr.
-- **With `ColorDepth::None`, not one escape byte is emitted**, even when the layout asks for
-  color.
+- **With `ColorDepth::None`, not one escape byte is emitted**, even when the layout asks for color.
 - **Every line ends with no style active**: no attribute survives a newline.
 - **No line exceeds the width in display cells**, with two documented exceptions: an indivisible
   grapheme cluster wider than the line (cluster integrity wins — see `wrap.rs`'s header) and the
   tables' TSV rung, which gives up width to preserve the data.
 - **No line ends with spaces.** It dirties diffs and copy-paste.
-- **What comes in borrowed goes out borrowed**: if `Cow::Borrowed` turns into `Owned` along the
-  way, memory stops being flat.
+- **What comes in borrowed goes out borrowed.** If `Cow::Borrowed` turns into `Owned` along the way,
+  memory stops being flat.
+- **A reader never decides how bytes become text.** The encoding is resolved by `termdoc-detect` and
+  applied to the `Source`; readers call `decode_line`.
 
 ### Where things live
 
 | What you need to change | File |
 |---|---|
 | The document model | `crates/termdoc-core/src/event.rs` |
+| Input, mmap, encoding application | `crates/termdoc-core/src/source.rs` |
+| Traits and the registry | `crates/termdoc-core/src/{traits,registry}.rs` |
 | Unicode wrapping | `crates/termdoc-layout/src/wrap.rs` |
 | Table width allocation | `crates/termdoc-layout/src/table.rs` |
 | The events→lines state machine | `crates/termdoc-layout/src/engine.rs` |
@@ -121,63 +131,69 @@ Do not break these without changing the design first:
 | Glyphs per Unicode level | `crates/termdoc-layout/src/glyphs.rs` |
 | ANSI sequences and color degradation | `crates/termdoc-backend/src/` |
 | Terminal detection | `crates/termdoc-term/src/lib.rs` |
-| Format detection layers | `crates/termdoc-detect/src/` |
+| Format detection layers | `crates/termdoc-detect/src/lib.rs` |
 | CSV delimiter sniffing | `crates/termdoc-detect/src/delimited.rs` |
 | Encoding detection | `crates/termdoc-detect/src/charset.rs` |
+| Magic bytes and intra-ZIP | `crates/termdoc-detect/src/magic.rs` |
 | CLI flags | `crates/termdoc-cli/src/cli.rs` |
+| Pipeline wiring | `crates/termdoc-cli/src/run.rs` |
 
 ### Testing strategy
 
-Each level isolates a different class of failure; use the one that fits:
+Five levels, each isolating a different class of failure. Use the one that fits:
 
-- **Event-stream golden tests** (`read-text/tests/events.rs`): the `Event` sequence with no ANSI
-  in the way. Separates a parsing bug from a painting bug.
-- **Snapshots** (`cli/tests/snapshots.rs`): the document × width × fidelity matrix. They detect
-  that something *changed*.
-- **Property tests** (`layout/tests/invariants.rs`): the wrapping invariants with generated
-  input (CJK, combining marks, ZWJ, flags).
-- **Integration** (`cli/tests/integration.rs`): behavior as a system utility — SIGPIPE, exit
-  codes, clean output in a pipe.
+- **Event-stream goldens** (`read-text/tests/events.rs`): the `Event` sequence with no ANSI in the
+  way. Separates a parsing bug from a painting bug.
+- **Snapshots** (`cli/tests/snapshots.rs`): the document × width × fidelity matrix. They detect that
+  something *changed*.
+- **Property tests** (`layout/tests/invariants.rs`): the wrapping invariants with generated input
+  (CJK, combining marks, ZWJ, flags).
+- **Integration** (`cli/tests/integration.rs`): behavior as a system utility — SIGPIPE, exit codes,
+  clean output in a pipe, encoding end to end.
 - **Layering** (`cli/tests/layering.rs`): the dependency-graph edges.
 
-When adding a format: event goldens first, snapshots after. Detecting that something *changed*
-(snapshot) and that something was *lost* (`no_width_loses_characters`) are different failures,
-and there is a test for each.
+When adding a format: event goldens first, snapshots after. "Something changed" (snapshot) and
+"something was lost" (`no_width_loses_characters`) are different failures, and there is a test for
+each.
+
+Tests that touch the filesystem must use a **per-call unique directory**. Cargo runs tests in
+parallel, and two of them sharing a fixture path means one can `open` the file in the instant the
+other truncated it to zero bytes. That already happened once, and the failure looked like a
+detection bug rather than a fixture race. See `scratch()` in `tests/integration.rs`.
 
 ## Adding a reader
 
 1. A new `crates/termdoc-read-<x>/` crate depending on **only** `termdoc-core`.
 2. Implement `DocumentReader`; return `Events<'a>` borrowing from `Source`.
-3. Implement `Detector` with the appropriate confidence level (`termdoc_core::confidence`).
-4. Expose `pub fn register(&mut Registry)` and call it from `run.rs::build_registry`.
-5. Add the crate to the `ALLOWED` table in `tests/layering.rs`.
-6. Event goldens, corpus, and snapshots.
+3. Expose `pub fn register(&mut Registry)` and call it from `run.rs::build_registry`. **Register no
+   detectors** — naming formats belongs to `termdoc-detect`.
+4. Add the crate to the `ALLOWED` table in `tests/layering.rs` and to `docs/DESIGN.md` §3.
+5. Event goldens, a corpus file, snapshots.
+6. Remove the format from `readable_as_text` in `run.rs` once the fallback no longer applies.
 
-A reader **describes** the document; it does not decide how it looks. If you find yourself
-needing the terminal width or a color inside a reader, the answer belongs in the layout or the
-theme.
+A reader **describes** the document; it does not decide how it looks. If you find yourself needing
+the terminal width or a color inside a reader, the answer belongs in the layout or the theme.
 
 ## Things that surprise people
 
-- `Source::as_str()` walks the entire source (it validates UTF-8). A reader that can go line by
-  line must use `bytes()`: that is the difference between `| head -5` reading a few pages and
+- `Source::as_str()` walks the entire source (it validates or transcodes). A reader that can go line
+  by line must use `decode_line`: that is the difference between `| head -5` reading a few pages and
   reading the whole file.
-- The layout **does not** merge adjacent segments of the same style: doing so would require
-  concatenating strings and would lose the `Cow::Borrowed`. Avoiding redundant SGR sequences is
-  the backend's job — it tracks the current style as state.
-- `pulldown-cmark` emits the table header as bare cells, with no `TableRow`. The engine opens
-  the row when it receives `TableHead`.
+- `Source::set_encoding` takes `&mut self` on purpose, so it must be applied before any reader
+  borrows the source. The borrow checker enforces an ordering a comment would only ask for.
+- `encoding_rs::decode` does BOM sniffing and **can override the encoding you asked for** — `FF FE`
+  is a UTF-16LE BOM. Use `decode_without_bom_handling`; BOM handling belongs to `termdoc-detect`.
+- The layout **does not** merge adjacent segments of the same style: that would require
+  concatenating strings and would lose the `Cow::Borrowed`. Avoiding redundant SGR is the backend's
+  job — it tracks the current style as state.
+- `pulldown-cmark` emits the table header as bare cells, with no `TableRow`. The engine opens the
+  row when it receives `TableHead`.
 - `pulldown-cmark` does not number list items: the reader does, in `Marker::Ordered`.
-- Raw HTML inside Markdown is dropped silently. Dumping `<br>` as text would be worse; the M3
-  HTML reader is the one that knows how to interpret it.
-- A reader must never decide how bytes become text: the encoding is resolved by the detection
-  layer and applied to the `Source`, and readers call `decode_line`. Duplicating that judgement is
-  how a latin-1 file ends up full of replacement characters when the right encoding was already
-  known.
-- `encoding_rs::decode` does BOM sniffing and **can override the encoding you asked for**. Use
-  `decode_without_bom_handling` and leave BOM handling to `termdoc-detect`.
+- Raw HTML inside Markdown is dropped silently. Dumping `<br>` as text would be worse; the M3 HTML
+  reader is the one that knows how to interpret it.
+- `infer` recognizes **textual** formats too (`text/xml`), so `magic.rs` hands anything `text/*`
+  onward instead of claiming it as binary at confidence 90.
 - Detection can name formats this build has no reader for. `run.rs::pick_reader` degrades to plain
-  text with a warning instead of failing.
+  text with a warning instead of failing — `--strict` turns that warning into an error.
 - The memory budget is measured in **the process's anonymous memory**, not RSS. With `mmap`, RSS
-  tracks the file size through clean page-cache pages, and that is not memory the process owns
-  (`docs/DESIGN.md` §8).
+  tracks the file size through clean page-cache pages, which are not memory the process owns (§8).

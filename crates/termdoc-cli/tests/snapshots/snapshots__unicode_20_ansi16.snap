@@ -1,0 +1,24 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;1;94mCell widths<ESC>[0m
+
+Ideographs:
+日本語のテキストはこ
+こにあります、そして
+折り返しが必要です。
+
+Combining: éééééé
+ààààà ñññññ
+
+ZWJ emoji: 👨‍👩‍👧 👩‍💻 🇲🇽
+
+<ESC>[0;90m┌─────────┬────────┐<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mLanguag<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mSample<ESC>[0m <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1me<ESC>[0m       <ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m├─────────┼────────┤<ESC>[0m
+<ESC>[0;90m│<ESC>[0m ja      <ESC>[0;90m│<ESC>[0m 日本語 <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m es      <ESC>[0;90m│<ESC>[0m españo <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m         <ESC>[0;90m│<ESC>[0m l      <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m└─────────┴────────┘<ESC>[0m

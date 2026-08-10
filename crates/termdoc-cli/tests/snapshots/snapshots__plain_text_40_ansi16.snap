@@ -1,0 +1,8 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+plain text with no markers
+second line
+	tabbed
+line with CRLF

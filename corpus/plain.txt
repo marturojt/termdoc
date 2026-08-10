@@ -1,0 +1,4 @@
+plain text with no markers
+second line
+	tabbed
+line with CRLF

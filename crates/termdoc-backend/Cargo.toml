@@ -1,0 +1,15 @@
+[package]
+name = "termdoc-backend"
+description = "termdoc output backends: ANSI and plain text"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+# LAYERING INVARIANT: core + term. It sees neither readers nor the layout engine;
+# it consumes `Line`, which lives in core precisely for that reason.
+[dependencies]
+termdoc-core.workspace = true
+termdoc-term.workspace = true

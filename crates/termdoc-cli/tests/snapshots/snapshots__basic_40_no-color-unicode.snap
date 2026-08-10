@@ -1,0 +1,50 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+# termdoc
+
+A universal document viewer for the
+terminal, with inline code and a link to
+an example[1].
+
+## Features
+
+• Fast
+• Low memory
+  ◦ Even with enormous files
+• Extensible
+
+1. First
+2. Second
+3. Third
+
+## Table
+
+┌──────────┬─────────┬───────┐
+│ Format   │ Status  │ Notes │
+├──────────┼─────────┼───────┤
+│ Markdown │  ready  │ M0    │
+│ PDF      │ pending │ M3    │
+└──────────┴─────────┴───────┘
+
+## Code
+
+fn main() {
+    println!("hello");
+}
+
+│ A block quote long enough to show how
+│ it wraps inside the margin.
+
+⚠ WARNING
+│ This is a GFM alert.
+
+────────────────────────────────────────
+
+A closing paragraph with a very long
+word:
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+aaaaaaaaaaaaa
+
+[1] https://example.com

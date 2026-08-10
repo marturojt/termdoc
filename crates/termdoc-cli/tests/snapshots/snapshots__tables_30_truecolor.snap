@@ -1,0 +1,21 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;90m┌────────┬─────┬─────────────┐<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mColumn<ESC>[0m <ESC>[0;90m│<ESC>[0m   <ESC>[0;1mN<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mA<ESC>[0m           <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mwith a<ESC>[0m <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m <ESC>[0;1mdescription<ESC>[0m <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mlong<ESC>[0m   <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m <ESC>[0;1mthat is not<ESC>[0m <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mname<ESC>[0m   <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m <ESC>[0;1mshort<ESC>[0m       <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m <ESC>[0;1meither<ESC>[0m      <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m├────────┼─────┼─────────────┤<ESC>[0m
+<ESC>[0;90m│<ESC>[0m first  <ESC>[0;90m│<ESC>[0m   1 <ESC>[0;90m│<ESC>[0m filler text <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m to force    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m the width   <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m allocation  <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m to work     <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m second <ESC>[0;90m│<ESC>[0m  22 <ESC>[0;90m│<ESC>[0m some other  <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m text        <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m third  <ESC>[0;90m│<ESC>[0m 333 <ESC>[0;90m│<ESC>[0m and one     <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m        <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m more        <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m└────────┴─────┴─────────────┘<ESC>[0m

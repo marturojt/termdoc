@@ -1,0 +1,4 @@
+/target
+# Pathological corpus: generated, not versioned (see scripts/gen-corpus.sh).
+/corpus/huge.log
+/corpus/*.generated.*

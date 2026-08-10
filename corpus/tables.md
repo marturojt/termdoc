@@ -1,0 +1,5 @@
+| Column with a long name | N | A description that is not short either |
+| ----------------------- | -: | :------------------------------------ |
+| first | 1 | filler text to force the width allocation to work |
+| second | 22 | some other text |
+| third | 333 | and one more |

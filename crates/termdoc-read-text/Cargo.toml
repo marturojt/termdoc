@@ -1,0 +1,15 @@
+[package]
+name = "termdoc-read-text"
+description = "Plain-text and Markdown readers for termdoc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+# LAYERING INVARIANT: core only. A reader that could see a backend would end up
+# emitting ANSI, which is exactly what the design forbids.
+[dependencies]
+termdoc-core.workspace = true
+pulldown-cmark.workspace = true

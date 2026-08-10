@@ -1,0 +1,13 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;90m┌─────────────────────────┬─────┬──────────────────────────┐<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mColumn with a long name<ESC>[0m <ESC>[0;90m│<ESC>[0m   <ESC>[0;1mN<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mA description that is<ESC>[0m    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m                         <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m <ESC>[0;1mnot short either<ESC>[0m         <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m├─────────────────────────┼─────┼──────────────────────────┤<ESC>[0m
+<ESC>[0;90m│<ESC>[0m first                   <ESC>[0;90m│<ESC>[0m   1 <ESC>[0;90m│<ESC>[0m filler text to force the <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m                         <ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m width allocation to work <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m second                  <ESC>[0;90m│<ESC>[0m  22 <ESC>[0;90m│<ESC>[0m some other text          <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m third                   <ESC>[0;90m│<ESC>[0m 333 <ESC>[0;90m│<ESC>[0m and one more             <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m└─────────────────────────┴─────┴──────────────────────────┘<ESC>[0m

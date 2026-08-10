@@ -1,0 +1,13 @@
+# NOTE: in gitattributes the LAST matching rule wins, so the general rule has to come
+# first and the exceptions after it. Getting this backwards silently normalizes the files
+# below, and the failure only shows up as puzzling snapshot diffs on Windows.
+
+# Everything is normalized to LF in the repository.
+* text=auto eol=lf
+
+# Exceptions: the corpus and the snapshots are compared byte for byte, so their line
+# endings must not depend on each machine's git configuration. `corpus/plain.txt`
+# deliberately contains a CRLF line to exercise the reader's handling of it, and
+# normalizing it would quietly remove that coverage.
+*.snap      -text
+corpus/**   -text

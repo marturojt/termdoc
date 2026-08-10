@@ -1,0 +1,21 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+┌────────┬─────┬─────────────┐
+│ Column │   N │ A           │
+│ with a │     │ description │
+│ long   │     │ that is not │
+│ name   │     │ short       │
+│        │     │ either      │
+├────────┼─────┼─────────────┤
+│ first  │   1 │ filler text │
+│        │     │ to force    │
+│        │     │ the width   │
+│        │     │ allocation  │
+│        │     │ to work     │
+│ second │  22 │ some other  │
+│        │     │ text        │
+│ third  │ 333 │ and one     │
+│        │     │ more        │
+└────────┴─────┴─────────────┘

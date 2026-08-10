@@ -1,0 +1,44 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;1;94mtermdoc<ESC>[0m
+
+A <ESC>[0;1muniversal<ESC>[0m document viewer for the <ESC>[0;3mterminal<ESC>[0m, with <ESC>[0;93minline code<ESC>[0m and a <ESC>]8;;https://example.com<ESC>\<ESC>[0;4;94mlink to an<ESC>]8;;<ESC>\<ESC>[0m
+<ESC>]8;;https://example.com<ESC>\<ESC>[0;4;94mexample<ESC>]8;;<ESC>\<ESC>[0m.
+
+<ESC>[0;1;96mFeatures<ESC>[0m
+
+<ESC>[0;96m• <ESC>[0mFast
+<ESC>[0;96m• <ESC>[0mLow memory
+  <ESC>[0;96m◦ <ESC>[0mEven with enormous files
+<ESC>[0;96m• <ESC>[0mExtensible
+
+<ESC>[0;96m1. <ESC>[0mFirst
+<ESC>[0;96m2. <ESC>[0mSecond
+<ESC>[0;96m3. <ESC>[0mThird
+
+<ESC>[0;1;96mTable<ESC>[0m
+
+<ESC>[0;90m┌──────────┬─────────┬───────┐<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;1mFormat<ESC>[0m   <ESC>[0;90m│<ESC>[0m <ESC>[0;1mStatus<ESC>[0m  <ESC>[0;90m│<ESC>[0m <ESC>[0;1mNotes<ESC>[0m <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m├──────────┼─────────┼───────┤<ESC>[0m
+<ESC>[0;90m│<ESC>[0m Markdown <ESC>[0;90m│<ESC>[0m  ready  <ESC>[0;90m│<ESC>[0m M0    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m PDF      <ESC>[0;90m│<ESC>[0m pending <ESC>[0;90m│<ESC>[0m M3    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m└──────────┴─────────┴───────┘<ESC>[0m
+
+<ESC>[0;1;96mCode<ESC>[0m
+
+<ESC>[0;93mfn main() {<ESC>[0m
+<ESC>[0;93m    println!("hello");<ESC>[0m
+<ESC>[0;93m}<ESC>[0m
+
+<ESC>[0;90m│<ESC>[0m <ESC>[0;2;3mA block quote long enough to show how it wraps inside the margin.<ESC>[0m
+
+<ESC>[0;93m⚠ WARNING<ESC>[0m
+<ESC>[0;90m│<ESC>[0m <ESC>[0;2;3mThis is a GFM alert.<ESC>[0m
+
+<ESC>[0;90m────────────────────────────────────────────────────────────────────────────────<ESC>[0m
+
+A closing paragraph with a very long word:
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

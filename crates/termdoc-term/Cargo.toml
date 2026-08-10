@@ -1,0 +1,13 @@
+[package]
+name = "termdoc-term"
+description = "Terminal capability detection and fidelity levels for termdoc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+# LAYERING INVARIANT: depends on no other termdoc crate.
+[dependencies]
+terminal_size.workspace = true

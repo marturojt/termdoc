@@ -1,0 +1,20 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+# Cell widths
+
+Ideographs:
+日本語のテキストはここにあります、そして
+折り返しが必要です。
+
+Combining: éééééé ààààà ñññññ
+
+ZWJ emoji: 👨‍👩‍👧 👩‍💻 🇲🇽
+
++----------+---------+
+| Language | Sample  |
++----------+---------+
+| ja       | 日本語  |
+| es       | español |
++----------+---------+

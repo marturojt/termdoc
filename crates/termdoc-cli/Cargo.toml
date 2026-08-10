@@ -1,0 +1,29 @@
+[package]
+name = "termdoc-cli"
+description = "A universal document viewer for the terminal"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "termdoc"
+path = "src/main.rs"
+
+# The CLI is the only crate allowed to see all the others: it is where the pipeline
+# gets wired and the readers get registered.
+[dependencies]
+termdoc-core.workspace = true
+termdoc-term.workspace = true
+termdoc-layout.workspace = true
+termdoc-backend.workspace = true
+termdoc-read-text.workspace = true
+clap.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+insta.workspace = true

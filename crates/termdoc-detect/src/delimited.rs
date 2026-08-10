@@ -12,7 +12,7 @@
 ///
 /// Comma first because it is the default; then semicolon (common in locales where the comma
 /// is the decimal separator), tab, and finally pipe.
-const CANDIDATES: [u8; 4] = [b',', b';', b'\t', b'|'];
+const CANDIDATES: &[u8] = b",;\t|";
 
 /// How many lines to sample. Enough to be confident, few enough to stay cheap on a
 /// million-row file.
@@ -68,7 +68,7 @@ pub fn detect(text: &str) -> Option<Delimited> {
 
     let mut best: Option<Delimited> = None;
 
-    for delimiter in CANDIDATES {
+    for &delimiter in CANDIDATES {
         let counts: Vec<usize> = lines.iter().map(|l| count_fields(l, delimiter)).collect();
 
         // A single column means the delimiter never appeared.

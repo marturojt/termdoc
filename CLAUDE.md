@@ -37,7 +37,12 @@ cargo build --release && python3 scripts/perf-gate.py
 ```
 
 CI (`.github/workflows/ci.yml`) runs the tests on Linux/macOS/Windows, plus `fmt`, `clippy`,
-each layer compiled separately, and the performance gates. The CI thresholds are looser than the
+each layer compiled separately, and the performance gates.
+
+**CI's clippy may be newer than your local one** and `RUSTFLAGS: -D warnings` makes any new lint a
+hard failure, so a green local `clippy` is not a guarantee. If lint fails in CI but passes locally,
+that is the reason — read the CI log rather than trying to reproduce it. Keeping the local
+toolchain current (`rustup update`) avoids the round trip. The CI thresholds are looser than the
 design's because a shared machine is slower and an intermittent gate is worse than no gate; they
 are still tight enough to catch a real regression, which would be an order of magnitude.
 

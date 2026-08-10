@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  # A build that fails on a warning is preferable to a warning nobody reads.
+  RUSTFLAGS: -D warnings
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The project's invariants only truly bind if something runs them on every push. This job
+  # is what turns the design into something that survives over time.
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Cross-platform support is an explicit project requirement (docs/DESIGN.md), so it
+        # is checked on all three from day one.
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --workspace --all-targets
+
+      - name: Tests
+        run: cargo test --workspace
+
+      # Run separately so its failure is unmistakable in the CI summary: this is not "a red
+      # test", it is "someone broke the pipeline's layering".
+      - name: Dependency-graph layering
+        run: cargo test -p termdoc-cli --test layering
+
+  lint:
+    name: format and clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # Every layer of the pipeline must compile on its own. This is a weaker check than
+  # `tests/layering.rs` —which reads the manifests and forbids specific edges— but the two
+  # fail for different reasons: this one catches a layer that has started needing another
+  # layer's code even though the manifest still looks correct.
+  #
+  # Once per-format feature flags exist (M1), this job will also build with
+  # `--no-default-features` to verify that a Markdown-only build pulls in nothing from PDF.
+  layers:
+    name: layers in isolation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build each layer separately
+        run: |
+          cargo build -p termdoc-core
+          cargo build -p termdoc-term
+          cargo build -p termdoc-layout
+          cargo build -p termdoc-backend
+
+  perf:
+    name: performance gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build in release mode
+        run: cargo build --release
+
+      - name: Gates
+        # The thresholds are relaxed relative to the local budget (docs/DESIGN.md §8): a CI
+        # machine is slower and shares its CPU, and an intermittent gate is worse than no
+        # gate. They are still tight enough to catch a real regression, which would be an
+        # order of magnitude rather than 20%.
+        env:
+          TERMDOC_MAX_STARTUP_MS: "40"
+          TERMDOC_CORPUS_LINES: "300000"
+        run: python3 scripts/perf-gate.py

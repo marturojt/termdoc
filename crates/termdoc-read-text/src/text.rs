@@ -5,8 +5,6 @@
 //! pages rather than two gigabytes, which is the yardstick for whether this behaves like a
 //! Unix utility.
 
-use std::borrow::Cow;
-
 use termdoc_core::{
     Diagnostic, DocumentReader, Event, Events, FormatId, Metadata, ReadContext, ReaderCaps, Result,
     Source, Span, Spanned, Tag, TagKind,
@@ -48,6 +46,7 @@ impl DocumentReader for TextReader {
 
     fn read<'a>(&self, src: &'a Source, _ctx: &ReadContext) -> Result<Events<'a>> {
         Ok(Box::new(TextEvents {
+            src,
             bytes: src.bytes(),
             pos: 0,
             line: 0,
@@ -70,6 +69,13 @@ enum Phase {
 }
 
 struct TextEvents<'a> {
+    /// The source is kept so decoding goes through it.
+    ///
+    /// The reader must not decide how bytes become text: the encoding was resolved by the
+    /// detection layer and applied to the source, and duplicating that judgement here is how a
+    /// latin-1 file ends up rendered with replacement characters even though the right encoding
+    /// was already known.
+    src: &'a Source,
     bytes: &'a [u8],
     pos: usize,
     line: u32,
@@ -125,35 +131,32 @@ impl<'a> Iterator for TextEvents<'a> {
                     // Strip the CR from Windows line endings.
                     let line_bytes = line_bytes.strip_suffix(b"\r").unwrap_or(line_bytes);
 
-                    // Validation per line: what is valid gets borrowed, and only the broken
-                    // line is copied. A latin-1 file therefore renders the same without a
-                    // UTF-8 document paying anything for it.
+                    // Decoding per line, through the source: valid UTF-8 is borrowed, and only
+                    // a line that needs transcoding is copied. That keeps the reader lazy while
+                    // still honoring whatever encoding was detected.
                     let span = Span::at_line(start as u64, self.pos as u64, self.line);
-                    match std::str::from_utf8(line_bytes) {
-                        Ok(s) => {
-                            return Some(Ok(Spanned::new(Event::Text(Cow::Borrowed(s)), span)));
-                        }
-                        Err(_) => {
-                            let lossy = String::from_utf8_lossy(line_bytes).into_owned();
-                            let text = Spanned::new(Event::Text(Cow::Owned(lossy)), span);
+                    let (decoded, had_errors) = self.src.decode_line(line_bytes);
 
-                            if self.warned_encoding {
-                                return Some(Ok(text));
-                            }
-                            // Warn exactly once —one warning per line in a million-line log
-                            // is worse than the problem— and still emit the line on the
-                            // next `next()`.
-                            self.warned_encoding = true;
-                            self.pending = Some(text);
-                            return Some(Ok(Spanned::new(
-                                Event::Diagnostic(Diagnostic::warning(format!(
-                                    "line {} is not valid UTF-8; shown with replacements",
-                                    self.line
-                                ))),
-                                span,
-                            )));
-                        }
+                    if !had_errors {
+                        return Some(Ok(Spanned::new(Event::Text(decoded), span)));
                     }
+
+                    let text = Spanned::new(Event::Text(decoded), span);
+                    if self.warned_encoding {
+                        return Some(Ok(text));
+                    }
+                    // Warn exactly once —one warning per line in a million-line log is worse
+                    // than the problem— and still emit the line on the next `next()`.
+                    self.warned_encoding = true;
+                    self.pending = Some(text);
+                    return Some(Ok(Spanned::new(
+                        Event::Diagnostic(Diagnostic::warning(format!(
+                            "line {} is not valid {}; shown with replacements",
+                            self.line,
+                            self.src.encoding_name()
+                        ))),
+                        span,
+                    )));
                 }
                 Phase::EndBody => {
                     self.phase = Phase::EndDocument;
@@ -182,6 +185,7 @@ impl std::fmt::Debug for TextEvents<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
 
     fn collect_events(src: &Source) -> Vec<Event<'_>> {
         TextReader::plain()
@@ -267,6 +271,22 @@ mod tests {
         let t = texts(&src);
         assert!(t.iter().any(|l| l.contains('a')), "{t:?}");
         assert!(t.iter().any(|l| l == "b"), "{t:?}");
+    }
+
+    #[test]
+    fn the_configured_encoding_is_honored() {
+        // Regression: the reader validated UTF-8 itself and ignored the encoding the detection
+        // layer had already resolved, so a latin-1 file rendered as replacement characters even
+        // though the right answer was known.
+        let mut src = Source::from_bytes("t", b"Comit\xE9\nse\xF1or\n".to_vec());
+        src.set_encoding("windows-1252").unwrap();
+        assert_eq!(texts(&src), vec!["Comité", "señor"]);
+        assert!(
+            !collect_events(&src)
+                .iter()
+                .any(|e| matches!(e, Event::Diagnostic(_))),
+            "a correctly decoded file must produce no warning"
+        );
     }
 
     #[test]

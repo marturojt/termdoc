@@ -1,0 +1,17 @@
+[package]
+name = "termdoc-detect"
+description = "Layered format and encoding detection for termdoc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+# LAYERING INVARIANT: core only. Detection answers "what is this?", never "how does it
+# look?", so it has no business knowing about layouts or backends.
+[dependencies]
+termdoc-core.workspace = true
+infer.workspace = true
+chardetng.workspace = true
+encoding_rs.workspace = true

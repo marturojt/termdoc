@@ -13,3 +13,6 @@ authors.workspace = true
 [dependencies]
 thiserror.workspace = true
 memmap2.workspace = true
+# Turning bytes into text is Source's job, and it is the only place where a decoded
+# string can live long enough for readers to borrow from it.
+encoding_rs.workspace = true

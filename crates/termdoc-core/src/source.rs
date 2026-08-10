@@ -36,6 +36,8 @@ pub struct Source {
     /// instance— cannot borrow from a local `String` of its own without becoming
     /// self-referential; borrowing from the source, which outlives it, works.
     text_cache: std::sync::OnceLock<String>,
+    /// The encoding to decode with. UTF-8 until `set_encoding` says otherwise.
+    encoding: &'static encoding_rs::Encoding,
 }
 
 impl Source {
@@ -82,6 +84,7 @@ impl Source {
             origin: Origin::File(path.to_path_buf()),
             data,
             text_cache: std::sync::OnceLock::new(),
+            encoding: encoding_rs::UTF_8,
         })
     }
 
@@ -99,6 +102,7 @@ impl Source {
             origin: Origin::Stdin,
             data: Data::Owned(buf),
             text_cache: std::sync::OnceLock::new(),
+            encoding: encoding_rs::UTF_8,
         })
     }
 
@@ -107,6 +111,7 @@ impl Source {
             origin: Origin::Memory(name.into()),
             data: Data::Owned(bytes.into()),
             text_cache: std::sync::OnceLock::new(),
+            encoding: encoding_rs::UTF_8,
         }
     }
 
@@ -158,40 +163,94 @@ impl Source {
         self.peek(PROBE_SIZE)
     }
 
-    /// The source as text.
+    /// Sets the encoding the source will be decoded with.
     ///
-    /// Returns `(text, was_lossy)`. Valid UTF-8 borrows without copying. Otherwise it
-    /// degrades to replacement-character conversion rather than giving up: a latin-1
-    /// document should still be readable, with a warning. Real encoding detection
-    /// (`chardetng` + `encoding_rs`) lands in M1.
-    pub fn text(&self) -> (std::borrow::Cow<'_, str>, bool) {
-        let bytes = self.bytes();
-        match std::str::from_utf8(bytes) {
-            Ok(s) => (std::borrow::Cow::Borrowed(s), false),
-            Err(_) => (String::from_utf8_lossy(bytes), true),
+    /// It has to be called **before** any read, and only once: the decoded text is cached so
+    /// readers can borrow a `&str` with the source's lifetime, and re-decoding would
+    /// invalidate borrows that already exist. Taking `&mut self` is what makes that a
+    /// compile-time guarantee rather than a comment.
+    ///
+    /// The label is anything `encoding_rs` accepts (`latin1`, `windows-1252`, `shift_jis`,
+    /// …). An unknown label is a usage error, not a silent fallback: guessing after the user
+    /// asked for something specific is worse than saying no.
+    pub fn set_encoding(&mut self, label: &str) -> Result<()> {
+        match encoding_rs::Encoding::for_label(label.as_bytes()) {
+            Some(enc) => {
+                self.encoding = enc;
+                Ok(())
+            }
+            None => Err(Error::Encoding(format!(
+                "unknown encoding '{label}'; use a label such as utf-8, latin1, \
+                 windows-1252 or shift_jis"
+            ))),
         }
+    }
+
+    /// The encoding in force. UTF-8 unless `set_encoding` said otherwise.
+    pub fn encoding_name(&self) -> &'static str {
+        self.encoding.name()
+    }
+
+    /// The source as text, as a `Cow`.
+    pub fn text(&self) -> (std::borrow::Cow<'_, str>, bool) {
+        let (s, lossy) = self.as_str();
+        (std::borrow::Cow::Borrowed(s), lossy)
     }
 
     /// The source as a `&str` with the source's own lifetime.
     ///
-    /// Returns `(text, was_lossy)`. Readers that cannot work line by line need this —
-    /// Markdown needs the complete document — because a `&'a str` borrowed from the
-    /// source can travel inside the events, while a `String` local to the reader cannot.
+    /// Returns `(text, had_replacements)`. Readers that cannot work line by line need this —
+    /// Markdown needs the complete document — because a `&'a str` borrowed from the source
+    /// can travel inside the events, while a `String` local to the reader cannot.
     ///
-    /// Valid UTF-8 copies nothing. Otherwise the conversion is cached here once.
+    /// UTF-8 input copies nothing. Any other encoding is transcoded once and cached here.
     /// **This walks the entire source**, so a reader that *can* go line by line must use
-    /// `bytes()` instead: that is the difference between `termdoc huge.log | head -5`
+    /// `decode_line` instead: that is the difference between `termdoc huge.log | head -5`
     /// reading a few pages and reading the whole file.
     pub fn as_str(&self) -> (&str, bool) {
-        match std::str::from_utf8(self.bytes()) {
-            Ok(s) => (s, false),
-            Err(_) => {
-                let cached = self
-                    .text_cache
-                    .get_or_init(|| String::from_utf8_lossy(self.bytes()).into_owned());
-                (cached.as_str(), true)
-            }
+        // The fast path: UTF-8 that is already valid borrows straight from the mapping.
+        if self.encoding == encoding_rs::UTF_8
+            && let Ok(s) = std::str::from_utf8(self.bytes())
+        {
+            return (s, false);
         }
+
+        let mut had_errors = false;
+        let cached = self.text_cache.get_or_init(|| {
+            // `decode` (with BOM handling) would *override* the configured encoding when the
+            // input starts with a BOM: the bytes `FF FE` are a UTF-16LE BOM, so a UTF-8
+            // source beginning with them would be reinterpreted entirely. Detecting a BOM is
+            // the detection layer's job (docs/DESIGN.md §4); here the caller's choice is
+            // honored exactly.
+            let (text, errors) = self.encoding.decode_without_bom_handling(self.bytes());
+            had_errors = errors;
+            text.into_owned()
+        });
+        // `get_or_init` only runs the closure the first time, so on later calls the flag has
+        // to be recomputed. Scanning for the replacement character is cheap next to the
+        // decode itself and keeps the answer honest.
+        if !had_errors {
+            had_errors = cached.contains('\u{FFFD}');
+        }
+        (cached.as_str(), had_errors)
+    }
+
+    /// Decodes a single slice of the source, honoring the configured encoding.
+    ///
+    /// This is the streaming readers' path: it keeps the laziness of going line by line —
+    /// nothing forces a walk of the whole file — while still handling non-UTF-8 input
+    /// correctly. Valid UTF-8 is borrowed; anything else costs one allocation for that line
+    /// alone.
+    pub fn decode_line<'a>(&self, bytes: &'a [u8]) -> (std::borrow::Cow<'a, str>, bool) {
+        if self.encoding == encoding_rs::UTF_8
+            && let Ok(s) = std::str::from_utf8(bytes)
+        {
+            return (std::borrow::Cow::Borrowed(s), false);
+        }
+        // Without BOM handling, for the same reason as in `as_str`, and because a per-line
+        // BOM check would be meaningless anyway.
+        let (text, errors) = self.encoding.decode_without_bom_handling(bytes);
+        (std::borrow::Cow::Owned(text.into_owned()), errors)
     }
 
     /// Binary heuristic: a NUL byte in the prefix. The same rule `grep` and `git` use,
@@ -250,6 +309,57 @@ mod tests {
         assert_eq!(s.text().0, "");
 
         std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn latin1_is_decoded_rather_than_mangled() {
+        // 0xE9 is "é" in latin-1 and invalid UTF-8. Without an encoding it degrades to a
+        // replacement character; with one it comes back correctly.
+        let mut s = Source::from_bytes("t", vec![b'a', 0xE9, b'b']);
+        let (lossy, had_errors) = s.as_str();
+        assert!(had_errors, "as UTF-8 it must report the loss");
+        assert!(lossy.contains('\u{FFFD}'));
+
+        let mut s2 = Source::from_bytes("t", vec![b'a', 0xE9, b'b']);
+        s2.set_encoding("latin1").expect("latin1 is a valid label");
+        let (text, had_errors) = s2.as_str();
+        assert_eq!(text, "aéb");
+        assert!(!had_errors, "latin-1 has no invalid bytes");
+        let _ = &mut s;
+    }
+
+    #[test]
+    fn an_unknown_encoding_is_an_error_not_a_silent_fallback() {
+        let mut s = Source::from_bytes("t", "x");
+        let err = s.set_encoding("not-an-encoding").unwrap_err();
+        assert_eq!(err.exit_code(), crate::exit::UNREADABLE);
+        assert!(err.to_string().contains("latin1"), "{err}");
+    }
+
+    #[test]
+    fn decode_line_stays_borrowed_for_utf8() {
+        // The streaming readers' invariant: going line by line must not allocate on the
+        // common path.
+        let s = Source::from_bytes("t", "hello");
+        let (text, _) = s.decode_line(b"hello");
+        assert!(matches!(text, std::borrow::Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn decode_line_honors_the_configured_encoding() {
+        let mut s = Source::from_bytes("t", "");
+        s.set_encoding("windows-1252").unwrap();
+        let (text, _) = s.decode_line(&[b'a', 0xE9]);
+        assert_eq!(text, "aé");
+    }
+
+    #[test]
+    fn as_str_reports_replacements_on_repeated_calls() {
+        // Regression: `get_or_init` only runs its closure once, so the flag has to be
+        // recomputed or the second caller would be told the decode was clean.
+        let s = Source::from_bytes("t", vec![0xff, b'a']);
+        assert!(s.as_str().1, "first call");
+        assert!(s.as_str().1, "second call must report it too");
     }
 
     #[test]

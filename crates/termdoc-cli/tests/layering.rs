@@ -22,6 +22,8 @@ const ALLOWED: &[(&str, &[&str])] = &[
     // It consumes `Line`, which lives in core precisely so this edge does not need to
     // include termdoc-layout.
     ("termdoc-backend", &["termdoc-core", "termdoc-term"]),
+    // Detection answers "what is this?", never "how does it look?".
+    ("termdoc-detect", &["termdoc-core"]),
     // A reader only describes the document. If it could see a backend, it would end up
     // emitting ANSI and the ability to add backends would be lost.
     ("termdoc-read-text", &["termdoc-core"]),
@@ -34,6 +36,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "termdoc-layout",
             "termdoc-backend",
             "termdoc-read-text",
+            "termdoc-detect",
         ],
     ),
 ];

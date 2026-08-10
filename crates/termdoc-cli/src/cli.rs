@@ -52,6 +52,10 @@ pub struct Cli {
     #[arg(long, value_name = "N")]
     pub width: Option<usize>,
 
+    /// Override encoding detection (utf-8, latin1, windows-1252, shift_jis, ...).
+    #[arg(long, value_name = "ENC")]
+    pub encoding: Option<String>,
+
     /// Use ASCII only: no box-drawing and no typographic bullets.
     #[arg(long, action = ArgAction::SetTrue)]
     pub ascii: bool,
@@ -119,6 +123,12 @@ mod tests {
     }
 
     #[test]
+    fn it_accepts_an_encoding_override() {
+        let cli = Cli::parse_from(["termdoc", "--encoding", "latin1", "a.txt"]);
+        assert_eq!(cli.encoding.as_deref(), Some("latin1"));
+    }
+
+    #[test]
     fn it_accepts_several_files() {
         let cli = Cli::parse_from(["termdoc", "a.md", "b.md"]);
         assert_eq!(cli.files.len(), 2);
@@ -131,5 +141,6 @@ mod tests {
         assert_eq!(cli.to, BackendChoice::Auto);
         assert!(!cli.ascii);
         assert!(cli.width.is_none());
+        assert!(cli.encoding.is_none());
     }
 }

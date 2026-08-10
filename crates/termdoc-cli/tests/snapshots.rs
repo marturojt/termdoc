@@ -62,6 +62,8 @@ fn render(path: &PathBuf, width: usize, fidelity: Fidelity) -> String {
     let src = Source::open(path).expect("the corpus file must exist");
 
     let mut registry = Registry::new();
+    // Both halves are needed: detection names the format, the readers know how to read it.
+    termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
     let format = registry.detect_or_fallback(&src).format;
     let reader = registry.reader_for(format).expect("a reader is available");

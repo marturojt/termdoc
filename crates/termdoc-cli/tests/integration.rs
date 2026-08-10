@@ -273,6 +273,165 @@ fn plain_text_line_breaks_are_preserved() {
     assert_eq!(stdout, "one\ntwo\nthree\n");
 }
 
+// ---------------------------------------------------------------- detection and encoding
+
+/// A scratch file in a directory unique to this call.
+///
+/// The uniqueness matters: cargo runs tests in parallel, and two of them sharing a fixture path
+/// means one can open the file in the instant the other has truncated it to zero bytes.
+fn scratch(name: &str, content: &[u8]) -> PathBuf {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("termdoc-it-{n}"));
+    std::fs::create_dir_all(&dir).expect("directory");
+    let path = dir.join(name);
+    std::fs::write(&path, content).expect("write");
+    path
+}
+
+#[test]
+fn every_m1_format_is_detected() {
+    let cases: &[(&str, &[u8], &str)] = &[
+        ("a.json", br#"{"a": 1}"#, "json"),
+        ("a.yaml", b"name: x\n", "yaml"),
+        ("a.toml", b"[pkg]\nname = \"x\"\n", "toml"),
+        ("a.csv", b"a,b,c\n1,2,3\n4,5,6\n7,8,9\n", "csv"),
+        ("a.xml", b"<?xml version=\"1.0\"?><r/>", "xml"),
+        ("a.html", b"<!DOCTYPE html><html></html>", "html"),
+        ("a.rs", b"fn main() {}", "code"),
+        (
+            "a.log",
+            b"2026-08-10T12:00:00Z INFO up\n2026-08-10T12:00:01Z INFO ok\n",
+            "log",
+        ),
+    ];
+    for (name, content, expected) in cases {
+        let path = scratch(name, content);
+        let (stdout, _, code) = run(&["--explain", path.to_str().unwrap()]);
+        assert_eq!(code, 0, "{name}");
+        assert!(
+            stdout.contains(&format!("format:   {expected}")),
+            "{name} was not detected as {expected}:\n{stdout}"
+        );
+    }
+}
+
+#[test]
+fn content_outranks_the_extension() {
+    // JSON in a `.txt` file. Content is more reliable than a name when the two disagree.
+    let path = scratch("data.txt", br#"{"a": 1, "b": [2, 3]}"#);
+    let (stdout, _, _) = run(&["--explain", path.to_str().unwrap()]);
+    assert!(stdout.contains("format:   json"), "{stdout}");
+}
+
+#[test]
+fn a_readme_is_never_mistaken_for_yaml() {
+    // The regression the YAML rule exists for: a Markdown file documenting options looks
+    // exactly like YAML to a naive sniffer.
+    let path = scratch(
+        "README.md",
+        b"# Options\n\nname: what to call it\nport: which one\n",
+    );
+    let (stdout, _, _) = run(&["--explain", path.to_str().unwrap()]);
+    assert!(stdout.contains("format:   markdown"), "{stdout}");
+}
+
+#[test]
+fn a_shebang_identifies_a_script_with_no_extension() {
+    let path = scratch("deploy", b"#!/usr/bin/env python3\nprint(1)\n");
+    let (stdout, _, _) = run(&["--explain", path.to_str().unwrap()]);
+    assert!(stdout.contains("format:   code"), "{stdout}");
+    assert!(
+        stdout.contains("shebang"),
+        "the reason must say why: {stdout}"
+    );
+}
+
+#[test]
+fn latin1_is_decoded_rather_than_mangled() {
+    // End to end: detection resolves windows-1252, the source applies it, and the reader honors
+    // it. Any one of the three failing produces replacement characters.
+    let path = scratch(
+        "latin1.txt",
+        b"Comit\xE9 de direcci\xF3n, se\xF1or, ni\xF1o, a\xF1o\n",
+    );
+    let (stdout, stderr, code) = run(&[path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(stdout.contains("Comité"), "stdout: {stdout:?}");
+    assert!(stdout.contains("dirección"), "stdout: {stdout:?}");
+    assert!(
+        !stdout.contains('\u{FFFD}'),
+        "no replacement characters expected: {stdout:?}"
+    );
+    assert!(
+        stderr.is_empty(),
+        "a correct decode needs no warning: {stderr}"
+    );
+}
+
+#[test]
+fn forcing_the_wrong_encoding_warns_but_still_shows_the_file() {
+    let path = scratch("latin1.txt", b"caf\xE9\n");
+    let (stdout, stderr, code) = run(&["--encoding", "utf-8", path.to_str().unwrap()]);
+    assert_eq!(code, 0, "it must still render");
+    assert!(stdout.contains("caf"), "{stdout:?}");
+    assert!(stderr.contains("warning"), "and it must say so: {stderr}");
+}
+
+#[test]
+fn an_unknown_encoding_is_refused_with_a_hint() {
+    let path = scratch("a.txt", b"x");
+    let (_, stderr, code) = run(&["--encoding", "not-real", path.to_str().unwrap()]);
+    assert_eq!(code, 4, "stderr: {stderr}");
+    assert!(
+        stderr.contains("latin1"),
+        "the error must suggest valid labels: {stderr}"
+    );
+}
+
+#[test]
+fn a_format_without_a_reader_still_shows_its_content() {
+    // Mid-roadmap, detection names more formats than there are readers. Refusing to display a
+    // .json file merely because its reader has not landed would be worse than showing it as
+    // text, and it contradicts the point of a universal viewer.
+    let path = scratch("a.json", br#"{"key": "value"}"#);
+    let (stdout, stderr, code) = run(&[path.to_str().unwrap()]);
+    assert_eq!(code, 0, "it must not be an error");
+    assert!(
+        stdout.contains("\"key\""),
+        "the content must be there: {stdout}"
+    );
+    assert!(
+        stderr.contains("no json reader yet"),
+        "and it must explain why it looks plain: {stderr}"
+    );
+    // The message must be one clean line, with no source-indentation leaking into it.
+    assert!(
+        !stderr.contains("   "),
+        "the warning has stray indentation: {stderr:?}"
+    );
+}
+
+#[test]
+fn strict_turns_the_fallback_warning_into_a_failure() {
+    let path = scratch("a.json", br#"{"a": 1}"#);
+    let (_, _, code) = run(&["--strict", path.to_str().unwrap()]);
+    assert_eq!(code, 1, "--strict promotes warnings to errors");
+}
+
+#[test]
+fn a_binary_is_never_dumped_as_text() {
+    let path = scratch(
+        "a.bin",
+        &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0],
+    );
+    let (stdout, stderr, code) = run(&[path.to_str().unwrap()]);
+    assert_ne!(code, 0, "a binary has no reader and must say so");
+    assert!(stdout.is_empty(), "nothing may reach stdout: {stdout:?}");
+    assert!(stderr.contains("termdoc:"), "{stderr}");
+}
+
 // ---------------------------------------------------------------- exit codes
 
 #[test]

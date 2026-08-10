@@ -7,15 +7,15 @@ document and renders it as well as the terminal allows, degrading based on the t
 capabilities. It is not an editor, not a converter, and not an IDE.
 
 **The full design lives in [`docs/DESIGN.md`](docs/DESIGN.md) and is the source of truth.**
-Read it before changing architecture. Status: **M0 complete** (Markdown, plain text, logs); the
-milestone roadmap is in §11 of that document.
+Read it before changing architecture. Status: **M0 complete**, **M1 in progress** — detection and
+encoding handling have landed, the data readers have not. The milestone roadmap is in §11.
 
 Code, comments, test names and user-facing messages are all in **English**.
 
 ## Commands
 
 ```bash
-cargo test --workspace                          # 164 tests
+cargo test --workspace                          # 258 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo build --release                           # binary at target/release/termdoc
 cargo run -q -- corpus/basic.md                 # run against the corpus
@@ -65,6 +65,7 @@ materialized locally, never the whole document.
 ```
 termdoc-core       → (nothing)       vocabulary: Event, Line, traits, Source
 termdoc-term       → (nothing)       terminal capabilities, Fidelity
+termdoc-detect     → core            what a document IS, never how it looks
 termdoc-layout     → core, term      wrapping, tables, lists, glyphs
 termdoc-backend    → core, term      ANSI and Plain
 termdoc-read-*     → core            core ONLY: a reader cannot see a backend
@@ -115,6 +116,9 @@ Do not break these without changing the design first:
 | Glyphs per Unicode level | `crates/termdoc-layout/src/glyphs.rs` |
 | ANSI sequences and color degradation | `crates/termdoc-backend/src/` |
 | Terminal detection | `crates/termdoc-term/src/lib.rs` |
+| Format detection layers | `crates/termdoc-detect/src/` |
+| CSV delimiter sniffing | `crates/termdoc-detect/src/delimited.rs` |
+| Encoding detection | `crates/termdoc-detect/src/charset.rs` |
 | CLI flags | `crates/termdoc-cli/src/cli.rs` |
 
 ### Testing strategy
@@ -161,6 +165,14 @@ theme.
 - `pulldown-cmark` does not number list items: the reader does, in `Marker::Ordered`.
 - Raw HTML inside Markdown is dropped silently. Dumping `<br>` as text would be worse; the M3
   HTML reader is the one that knows how to interpret it.
+- A reader must never decide how bytes become text: the encoding is resolved by the detection
+  layer and applied to the `Source`, and readers call `decode_line`. Duplicating that judgement is
+  how a latin-1 file ends up full of replacement characters when the right encoding was already
+  known.
+- `encoding_rs::decode` does BOM sniffing and **can override the encoding you asked for**. Use
+  `decode_without_bom_handling` and leave BOM handling to `termdoc-detect`.
+- Detection can name formats this build has no reader for. `run.rs::pick_reader` degrades to plain
+  text with a warning instead of failing.
 - The memory budget is measured in **the process's anonymous memory**, not RSS. With `mmap`, RSS
   tracks the file size through clean page-cache pages, and that is not memory the process owns
   (`docs/DESIGN.md` §8).

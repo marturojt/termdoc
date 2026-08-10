@@ -312,8 +312,30 @@ variance across all of them → it is not CSV. The rest: JSON (`{`/`[` plus actu
 prefix), YAML (`---`, `key:` in column 0), TOML (`[section]`, `k = v`), XML/HTML (`<?xml`,
 `<!DOCTYPE html`), Markdown (`#`, fences, lists), logs (a timestamp regex at line start).
 
-**Encoding:** BOM → `chardetng` over 64 KB → lazy transcoding with `encoding_rs`. Overridable
-with `--encoding`. Latin-1 documents are common, and exiting with mojibake is not acceptable.
+**Encoding:** BOM → "does it parse as UTF-8?" → `chardetng` over 64 KB → transcoding with
+`encoding_rs`, cached in the `Source`. Overridable with `--encoding`. Latin-1 documents are
+common, and exiting with mojibake is not acceptable.
+
+The order is not arbitrary. A BOM is a *declaration* by whoever wrote the file, so it wins
+outright. Valid UTF-8 is then itself strong evidence — long invalid-UTF-8 runs are statistically
+unlikely — and it must be checked *before* the statistical detector, or accented UTF-8 gets
+"corrected" into windows-1252 and `é` becomes `Ã©`.
+
+Two implementation notes worth recording:
+
+- `Source::set_encoding` takes `&mut self`, so applying an encoding must happen before any reader
+  borrows the source. The borrow checker enforces the ordering that a comment would only ask for.
+- `encoding_rs::decode` performs **BOM sniffing and can override the requested encoding**: the
+  bytes `FF FE` are a UTF-16LE BOM, so a UTF-8 source starting with them would be reinterpreted
+  wholesale. `decode_without_bom_handling` is used instead, and BOM handling stays in the
+  detection layer where it belongs.
+
+**Which formats may claim STRUCTURAL confidence** — only those whose prefix can be *checked*
+rather than guessed at: JSON, XML/HTML, TOML (a `[section]` header) and CSV. **YAML deliberately
+may not.** `key: value` lines are indistinguishable from a Markdown document listing options, and
+letting YAML claim 70 would beat a `.md` extension at 50 and render a README as YAML. YAML claims
+HEURISTIC only, and only with an explicit `---` or `%YAML` marker; otherwise it relies on its
+extension, which is what people actually have.
 
 ---
 
@@ -532,7 +554,7 @@ Every milestone leaves a **usable** tool, not scaffolding.
 | M | Scope | Result |
 |---|---|---|
 | **M0 Foundations** | Workspace; `Event`/`Tag`/`Line`; `Source` (mmap + stdin); layout engine (wrapping, lists, tables, code); ANSI + Plain backends; `termdoc-term`; the CLI; the snapshot harness. Formats: TXT, Markdown | `termdoc README.md` already beats `cat`; pipes behave correctly |
-| **M1 Data and code** | JSON, YAML, TOML, XML, CSV, syntax-highlighted code, logs — all streaming. The complete detection engine with `--explain` | Covers the majority of daily use |
+| **M1 Data and code** | JSON, YAML, TOML, XML, CSV, syntax-highlighted code, logs — all streaming. The complete detection engine with `--explain` | Covers the majority of daily use. **In progress:** `termdoc-detect` landed |
 | **M2 Pager** | A `ratatui` TUI: scrolling, search, TOC navigation, follow mode (`-f`), keybindings. TTY/pipe auto-detection | Replaces `less` for documents |
 | **M3 Rich documents** | HTML, DOCX, ODT, RTF, EPUB (sharing the ZIP+XML infrastructure), PDF. Images and graphics backends | Closes out the main format list |
 | **M4 Extensibility** | The plugin host, protocol v1, the SDK, the manifest cache, a reference plugin. Markdown and HTML backends | Third parties add formats without touching the core |
@@ -571,11 +593,11 @@ verified.
 
 Three deviations from what was approved, with their reasons:
 
-1. **`termdoc-detect` does not exist yet; M0's detection lives in `termdoc-read-text`.** With two
-   formats, a separate crate would be scaffolding without a purpose. What *is* there from the
-   start is the layered structure with confidence levels (§4), which is what allows adding layers
-   —magic bytes, intra-ZIP disambiguation, CSV sniffing— without rewriting anything. The crate gets
-   extracted in M1, once there are eight text formats to disambiguate.
+1. ~~**`termdoc-detect` does not exist yet.**~~ **Resolved in M1.** The crate now exists with all
+   four layers, intra-ZIP disambiguation, CSV delimiter-variance sniffing and encoding detection.
+   Because detection can now name formats this build has no reader for, `pick_reader` degrades to
+   plain text with a warning rather than refusing: mid-roadmap, showing a `.json` file as text
+   beats refusing to show it at all, and a universal viewer should always show *something*.
 
 2. **stdin is fully buffered.** M0's formats gain nothing from incremental streaming: Markdown
    needs the complete document anyway, and huge files have the file path, which *is* lazy. The

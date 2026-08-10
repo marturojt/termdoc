@@ -17,10 +17,65 @@ use crate::cli::{BackendChoice, Cli, When};
 /// Builds the registry with everything this binary can read.
 pub fn build_registry() -> Registry {
     let mut registry = Registry::new();
+    // Detection first, then readers. The two are independent: `termdoc-detect` names formats
+    // this build may have no reader for, which is handled by the fallback in `pick_reader`.
+    termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
     // In M4, discovered plugins get added here. Order matters: because they register later,
     // a plugin can deliberately replace a built-in.
     registry
+}
+
+/// Formats that are readable as plain text when their own reader is not available.
+///
+/// The detection engine can name more formats than there are readers for — that is the normal
+/// state of a project mid-roadmap. Refusing to show a `.json` file merely because its dedicated
+/// reader has not landed yet would be a regression against just treating it as text, and it
+/// contradicts the point of a universal viewer. So the fallback shows the file and says why it
+/// looks plainer than it should.
+fn readable_as_text(format: FormatId) -> bool {
+    matches!(
+        format,
+        FormatId::Json
+            | FormatId::Yaml
+            | FormatId::Toml
+            | FormatId::Xml
+            | FormatId::Csv
+            | FormatId::Html
+            | FormatId::SourceCode
+            | FormatId::PlainText
+            | FormatId::Log
+            | FormatId::Markdown
+    )
+}
+
+/// Resolves the reader, degrading to plain text when there is none yet.
+///
+/// Returns the reader together with a diagnostic to report when a fallback happened.
+fn pick_reader(
+    registry: &Registry,
+    format: FormatId,
+) -> Result<(&dyn termdoc_core::DocumentReader, Option<Diagnostic>)> {
+    if let Some(reader) = registry.reader_for(format) {
+        return Ok((reader, None));
+    }
+
+    if readable_as_text(format) {
+        let reader = registry
+            .reader_for(FormatId::PlainText)
+            .ok_or_else(|| Error::Unsupported("no plain-text reader in this build".into()))?;
+        return Ok((
+            reader,
+            Some(Diagnostic::warning(format!(
+                "detected {format}, but this build has no {format} reader yet; showing it as \
+                 plain text"
+            ))),
+        ));
+    }
+
+    Err(Error::Unsupported(format!(
+        "'{format}' cannot be displayed by this build"
+    )))
 }
 
 /// Resolves the effective capabilities by combining what was detected with the flags.
@@ -87,8 +142,17 @@ fn open_source(arg: &str) -> Result<Source> {
     }
 }
 
-/// Resolves the format: `--from` wins; otherwise it is detected.
-fn resolve_format(cli: &Cli, registry: &Registry, src: &Source) -> Result<FormatId> {
+/// Resolves the format and configures the source's encoding.
+///
+/// `--from` wins over detection, but the encoding is still detected either way: the two are
+/// independent questions, and someone forcing `--from json` should not thereby lose latin-1
+/// decoding.
+///
+/// Takes `&mut Source` because applying an encoding must happen before any reader borrows the
+/// source. That is enforced by the borrow checker rather than by a comment.
+fn resolve_format(cli: &Cli, registry: &Registry, src: &mut Source) -> Result<FormatId> {
+    let detection = termdoc_detect::prepare(registry, src, cli.encoding.as_deref())?;
+
     if let Some(name) = &cli.from {
         return FormatId::parse(name).ok_or_else(|| {
             Error::Usage(format!(
@@ -97,7 +161,7 @@ fn resolve_format(cli: &Cli, registry: &Registry, src: &Source) -> Result<Format
             ))
         });
     }
-    Ok(registry.detect_or_fallback(src).format)
+    Ok(detection.format)
 }
 
 pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
@@ -125,17 +189,21 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
     let mut any_diagnostic = false;
 
     for (idx, target) in targets.iter().enumerate() {
-        let src = open_source(target)?;
-        let format = resolve_format(cli, &registry, &src)?;
+        let mut src = open_source(target)?;
+        let format = resolve_format(cli, &registry, &mut src)?;
+        let src = src;
 
         if cli.explain {
             explain(&registry, &src, format, cli, out)?;
             continue;
         }
 
-        let reader = registry.reader_for(format).ok_or_else(|| {
-            Error::Unsupported(format!("'{format}' has no reader in this build yet"))
-        })?;
+        let (reader, fallback) = pick_reader(&registry, format)?;
+        if let Some(d) = &fallback {
+            report(d, &src, err)?;
+            any_diagnostic = true;
+            worst = worst.max(d.severity);
+        }
 
         let ctx = ReadContext {
             metadata_only: cli.meta,
@@ -234,6 +302,7 @@ fn explain(
     writeln!(out, "source:   {}", src.display_name())?;
     writeln!(out, "size:     {} bytes", src.len())?;
     writeln!(out, "format:   {chosen}")?;
+    writeln!(out, "encoding: {}", termdoc_detect::charset_reason(src))?;
 
     if cli.from.is_some() {
         writeln!(out, "reason:   forced by --from (confidence 100)")?;
@@ -399,7 +468,9 @@ mod tests {
     fn an_unknown_from_is_a_usage_error() {
         let registry = build_registry();
         let src = Source::from_bytes("t", "x");
-        let err = resolve_format(&cli(&["--from", "nonexistent"]), &registry, &src).unwrap_err();
+        let mut src = src;
+        let err =
+            resolve_format(&cli(&["--from", "nonexistent"]), &registry, &mut src).unwrap_err();
         assert_eq!(err.exit_code(), exit::USAGE);
         // The message must list what is valid: an error with no way out is useless.
         assert!(err.to_string().contains("markdown"), "{err}");
@@ -410,7 +481,8 @@ mod tests {
         let registry = build_registry();
         // Content that would be detected as Markdown.
         let src = Source::from_bytes("t", "# Title\n");
-        let f = resolve_format(&cli(&["--from", "text"]), &registry, &src).unwrap();
+        let mut src = src;
+        let f = resolve_format(&cli(&["--from", "text"]), &registry, &mut src).unwrap();
         assert_eq!(f, FormatId::PlainText);
     }
 }

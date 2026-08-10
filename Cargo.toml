@@ -5,6 +5,7 @@ members = [
     "crates/termdoc-term",
     "crates/termdoc-layout",
     "crates/termdoc-backend",
+    "crates/termdoc-detect",
     "crates/termdoc-read-text",
     "crates/termdoc-cli",
 ]
@@ -24,6 +25,7 @@ termdoc-term = { path = "crates/termdoc-term", version = "0.1.0" }
 termdoc-layout = { path = "crates/termdoc-layout", version = "0.1.0" }
 termdoc-backend = { path = "crates/termdoc-backend", version = "0.1.0" }
 termdoc-read-text = { path = "crates/termdoc-read-text", version = "0.1.0" }
+termdoc-detect = { path = "crates/termdoc-detect", version = "0.1.0" }
 
 # External — versions verified on crates.io 2026-08-10 (docs/DESIGN.md §9)
 clap = { version = "4.6", features = ["derive", "wrap_help"] }
@@ -33,6 +35,9 @@ memmap2 = "0.9"
 unicode-width = "0.2"
 unicode-segmentation = "1.13"
 terminal_size = "0.4"
+encoding_rs = "0.8"
+chardetng = "1.0"
+infer = { version = "0.22", default-features = false, features = ["std"] }
 insta = "1.48"
 proptest = "1"
 

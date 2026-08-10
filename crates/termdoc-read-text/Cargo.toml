@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["markdown", "text", "parser", "reader", "logs"]
+categories = ["text-processing", "parsing"]
 
 # LAYERING INVARIANT: core only. A reader that could see a backend would end up
 # emitting ANSI, which is exactly what the design forbids.

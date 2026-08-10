@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["detection", "mime", "encoding", "charset", "format"]
+categories = ["parsing", "encoding"]
 
 # LAYERING INVARIANT: core only. Detection answers "what is this?", never "how does it
 # look?", so it has no business knowing about layouts or backends.

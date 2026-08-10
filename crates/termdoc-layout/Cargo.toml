@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["terminal", "layout", "unicode", "wrapping", "text"]
+categories = ["text-processing", "command-line-interface"]
 
 # LAYERING INVARIANT: core + term. It sees neither backends nor readers.
 [dependencies]

@@ -44,7 +44,7 @@ jobs:
       # Run separately so its failure is unmistakable in the CI summary: this is not "a red
       # test", it is "someone broke the pipeline's layering".
       - name: Dependency-graph layering
-        run: cargo test -p termdoc-cli --test layering
+        run: cargo test -p termdoc --test layering
 
   lint:
     name: format and clippy

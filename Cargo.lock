@@ -557,15 +557,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "termdoc-backend"
-version = "0.1.0"
-dependencies = [
- "termdoc-core",
- "termdoc-term",
-]
-
-[[package]]
-name = "termdoc-cli"
+name = "termdoc"
 version = "0.1.0"
 dependencies = [
  "clap",
@@ -576,6 +568,14 @@ dependencies = [
  "termdoc-detect",
  "termdoc-layout",
  "termdoc-read-text",
+ "termdoc-term",
+]
+
+[[package]]
+name = "termdoc-backend"
+version = "0.1.0"
+dependencies = [
+ "termdoc-core",
  "termdoc-term",
 ]
 

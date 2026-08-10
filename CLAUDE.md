@@ -30,11 +30,11 @@ cargo run -q -- corpus/basic.md                 # run against the corpus
 # A single test, or one test file
 cargo test -p termdoc-layout wrap::tests::breaks_at_word_boundaries
 cargo test -p termdoc-detect delimited          # every delimiter test
-cargo test -p termdoc-cli --test integration
+cargo test -p termdoc --test integration
 cargo test -p termdoc-read-text --test events
 
 # Snapshots. cargo-insta is NOT installed here, so accept in bulk and review the diff by hand:
-INSTA_UPDATE=always cargo test -p termdoc-cli --test snapshots
+INSTA_UPDATE=always cargo test -p termdoc --test snapshots
 git diff crates/termdoc-cli/tests/snapshots/    # <- actually read this before committing
 
 # Pathological corpus (not versioned, because of its size)

@@ -1,12 +1,19 @@
 [package]
-name = "termdoc-cli"
+# The package is `termdoc` so that `cargo install termdoc` works and the flagship name on
+# crates.io is the project's own. The directory keeps the `-cli` suffix: it names the
+# layer, and tests/layering.rs indexes the graph by directory.
+name = "termdoc"
 description = "A universal document viewer for the terminal"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [[bin]]
 name = "termdoc"

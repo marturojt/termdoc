@@ -261,6 +261,7 @@ termdoc/
 │   ├── termdoc-plugin/           # host: discovery, manifest cache, stdio protocol
 │   ├── termdoc-plugin-sdk/       # a publishable crate for plugin authors
 │   └── termdoc-cli/              # the binary: clap, config, wiring, exit codes
+│                                 #   (published as the `termdoc` package — see §14)
 ├── scripts/                      # corpus generation, performance gates
 ├── corpus/                       # test documents (small, clearly licensed)
 ├── tests/  benches/  fuzz/
@@ -622,7 +623,7 @@ At M0's close, all of this must pass:
 
 ```bash
 cargo test --workspace                      # unit + golden + snapshots
-cargo test -p termdoc-cli --test layering   # the dependency-graph edges
+cargo test -p termdoc --test layering       # the dependency-graph edges
 cargo clippy --workspace --all-targets -- -D warnings
 
 termdoc corpus/basic.md                     # colors, Unicode tables
@@ -633,3 +634,39 @@ NO_COLOR=1 termdoc corpus/basic.md | cat    # no escape sequences
 termdoc --width 40 --ascii corpus/tables.md # a degradation rung
 python3 scripts/perf-gate.py                # startup, memory, lazy output
 ```
+
+---
+
+## 14. Publishing
+
+Seven crates go to crates.io, and the name that matters is claimed by the binary.
+
+### The package is `termdoc`, the directory is `crates/termdoc-cli/`
+
+`cargo install termdoc` has to work, and the project's own name should not sit unclaimed while
+someone else takes it. So the CLI package is named `termdoc`, following the ecosystem's convention
+(`ripgrep` publishes as `ripgrep` and installs `rg`; `bat` publishes as `bat`).
+
+The **directory** keeps the `-cli` suffix, because it names the *layer*, and the layering table in
+§3 and `tests/layering.rs` are both organized by layer. That test indexes by directory name, so the
+package rename does not touch it. The mismatch is deliberate and costs one line of explanation here.
+
+### 0.x is the API contract
+
+Every crate is published at `0.1.0`, and each library's README says the API is unstable before 1.0.
+That is not boilerplate: §11 gates 1.0 on freezing the **document model** and the **plugin
+protocol**, and neither is frozen. `Event`, `Tag` and the reader traits will still change as M1's
+readers land and M4's plugin host is built — publishing now claims the names and lets people install
+the binary, without promising a stability that does not exist yet.
+
+The libraries are published because a workspace cannot publish a binary that depends on unpublished
+path dependencies, not because anyone should be building on them yet.
+
+### Order
+
+`cargo publish --workspace` computes the dependency order and waits for the index between crates.
+The order it derives is `core` and `term` first, then `detect`, `layout`, `backend` and
+`read-text`, then `termdoc` last.
+
+Publishing is irreversible: a version can be yanked, but never replaced or deleted, and the name is
+taken forever. Run `cargo publish --workspace --dry-run` and read the packaged file list first.

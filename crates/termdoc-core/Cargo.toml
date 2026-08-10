@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["terminal", "document", "viewer", "streaming", "text"]
+categories = ["text-processing", "data-structures"]
 
 # LAYERING INVARIANT: this crate depends on no other termdoc crate.
 # See docs/DESIGN.md §3 and crates/termdoc-cli/tests/layering.rs

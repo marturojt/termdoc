@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["terminal", "ansi", "color", "output", "rendering"]
+categories = ["command-line-interface"]
 
 # LAYERING INVARIANT: core + term. It sees neither readers nor the layout engine;
 # it consumes `Line`, which lives in core precisely for that reason.

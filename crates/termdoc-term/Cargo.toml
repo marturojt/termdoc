@@ -6,7 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 authors.workspace = true
+keywords = ["terminal", "tty", "ansi", "capabilities", "color"]
+categories = ["command-line-interface"]
 
 # LAYERING INVARIANT: depends on no other termdoc crate.
 [dependencies]

@@ -22,7 +22,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | | |
 |---|---|
 | Repo | `git@github.com:marturojt/termdoc.git`, branch `main`, everything pushed |
-| Commits | 4, history is clean and in English |
+| Commits | 6, history is clean and in English |
 | Code | ~10,100 lines across 7 crates |
 | Tests | **258**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
@@ -85,9 +85,10 @@ Points worth deciding deliberately rather than by default:
   theme role and scalars in another. `Tag::Preformatted` plus styled `Text` is likely enough; you
   probably do **not** want `CodeBlock`, because that will later imply syntax highlighting on top of
   structure you already understand.
-- **Whether to stream.** `serde_json` on a 2 GB file will materialize it. There is a real decision
-  here between "correct and simple" and "streaming", and the honest first move is simple, with the
-  streaming path noted for later. Do not silently claim streaming in `ReaderCaps`.
+- **Whether to stream.** Do not treat this as one decision for all four formats — the profiles are
+  opposite, and §6.1 records the per-format answer. Do not silently claim streaming in
+  `ReaderCaps`: nothing consumes that field today, so an aspirational `true` rots into a lie with no
+  test to catch it.
 - **YAML with `yaml-rust2`** is a low-level event parser, which fits the event model well. Do not
   reach for a `serde` DOM out of habit — and read the warning in §9 of DESIGN.md before touching any
   YAML crate.
@@ -175,14 +176,17 @@ These cost real debugging time. They are all fixed; this list exists so they are
 
 ## 6. Open questions for the owner
 
-Neither blocks progress, but both are cheaper to settle sooner.
-
-1. **Streaming versus simplicity for the data readers.** `serde_json` materializes; a streaming JSON
-   reader is real work. My inclination is simple first, `ReaderCaps.streaming = false` honestly set,
-   and revisit if someone actually views a huge JSON file. Worth a decision rather than a default.
-2. **Publishing to crates.io.** Seven crates would all need publishing, and `1.0` is deliberately
-   gated on the plugin protocol and document model freezing (§11). Nothing forces this now, but
-   names on crates.io are first-come.
+1. **Streaming versus simplicity for the data readers.** Resolved in shape, not yet in code: it is
+   **four decisions, not one**. XML streams because `quick-xml` is already a pull parser that
+   borrows; TOML materializes without apology because config files are small; YAML uses
+   `yaml-rust2`'s event parser; and **only JSON is a real dilemma**. For JSON the plan is
+   `serde_json` plus a size guard — under the threshold it materializes and pretty-prints, over it
+   the reader emits `Tag::Preformatted` and an `Event::Diagnostic` saying why. The guard lives in
+   the reader, not in `run.rs`, because `pick_reader` decides by *format* and has no business
+   knowing about byte counts. **Derive the threshold from a measurement** with
+   `scripts/perf-gate.py`, not from a guess. Note also that YAML aliases (`*ref`) cannot be
+   resolved by a pure stream: render the reference as written rather than expanding it.
+2. **Publishing to crates.io.** ~~Open~~ **Prepared, awaiting the first upload.** See §10.
 
 ---
 
@@ -191,7 +195,7 @@ Neither blocks progress, but both are cheaper to settle sooner.
 - **Rust 1.96.1 from Homebrew, and no `rustup`.** So no `rustup update`, and no cross-compiling to
   verify Windows locally — CI is the only Windows check. This is also why CI's clippy can be ahead.
 - **`cargo-insta` is not installed.** Accept snapshots with `INSTA_UPDATE=always cargo test -p
-  termdoc-cli --test snapshots`, then **read `git diff` on the snapshot directory**. Accepting
+  termdoc --test snapshots`, then **read `git diff` on the snapshot directory**. Accepting
   blindly defeats the point of having them.
 - **`gh` 2.96 is available and authenticated**, which is how CI runs get watched.
 - **`corpus/huge.log` is gitignored** (122 MB). `./scripts/gen-corpus.sh` regenerates it; the perf
@@ -228,3 +232,40 @@ the reason gets written down.
   grep for the section number to find every place that leans on it.
 - Do not trust a passing `clippy` locally as a green light for CI, and do not push a snapshot diff
   you have not read.
+
+---
+
+## 10. crates.io: prepared, not yet published
+
+All eight candidate names were free when checked (2026-08-10), including **`termdoc`** itself.
+Everything needed to publish is in place; the upload has deliberately not happened yet, because it
+is irreversible and needs an authenticated account.
+
+What was done:
+
+- The CLI package was renamed `termdoc-cli` → **`termdoc`**, so `cargo install termdoc` works and
+  the project's own name is not left for someone else to take. The **directory** keeps its `-cli`
+  suffix — it names the layer, and `tests/layering.rs` indexes by directory, so the test was
+  untouched. Reasoning in DESIGN.md §14.
+- `keywords`, `categories`, `homepage` and `readme` added to every manifest.
+- A README per crate. Each library's says plainly that **the API is unstable before 1.0**, which is
+  the honest counterpart to publishing while §11 still gates 1.0 on freezing the document model and
+  the plugin protocol. The libraries ship because a binary cannot be published with unpublished
+  path dependencies — not because anyone should build on them yet.
+- `cargo publish --workspace --dry-run` passes for all seven, READMEs included in the tarballs.
+
+To actually publish:
+
+```bash
+cargo login                                    # interactive; no credentials on this machine yet
+cargo publish --workspace --dry-run            # read the file list one more time
+cargo publish --workspace                      # irreversible
+```
+
+`--workspace` derives the order itself: `core` and `term`, then `backend`, `detect`, `layout`,
+`read-text`, and `termdoc` last. A published version can be yanked but never replaced or deleted,
+and the name is taken permanently.
+
+Afterwards, add the crates.io and docs.rs badges to `README.md`, and consider whether `0.1.0` should
+instead be `0.0.1` if you would rather signal "reserved" than "usable" — the binary genuinely works,
+so `0.1.0` is defensible.

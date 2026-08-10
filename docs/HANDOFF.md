@@ -21,8 +21,9 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 
 | | |
 |---|---|
-| Repo | `git@github.com:marturojt/termdoc.git`, branch `main`, everything pushed |
-| Commits | 6, history is clean and in English |
+| Repo | `git@github.com:marturojt/termdoc.git`, branch `main` |
+| Commits | 7, history is clean and in English |
+| crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Code | ~10,100 lines across 7 crates |
 | Tests | **258**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
@@ -186,7 +187,7 @@ These cost real debugging time. They are all fixed; this list exists so they are
    knowing about byte counts. **Derive the threshold from a measurement** with
    `scripts/perf-gate.py`, not from a guess. Note also that YAML aliases (`*ref`) cannot be
    resolved by a pure stream: render the reference as written rather than expanding it.
-2. **Publishing to crates.io.** ~~Open~~ **Prepared, awaiting the first upload.** See §10.
+2. **Publishing to crates.io.** Settled: all seven crates are live at `0.1.0`. See §10.
 
 ---
 
@@ -235,11 +236,10 @@ the reason gets written down.
 
 ---
 
-## 10. crates.io: prepared, not yet published
+## 10. crates.io: published at 0.1.0
 
-All eight candidate names were free when checked (2026-08-10), including **`termdoc`** itself.
-Everything needed to publish is in place; the upload has deliberately not happened yet, because it
-is irreversible and needs an authenticated account.
+All seven crates are live as of 2026-08-10. Every candidate name was free when checked, **`termdoc`**
+included, so `cargo install termdoc` works.
 
 What was done:
 
@@ -252,20 +252,23 @@ What was done:
   the honest counterpart to publishing while §11 still gates 1.0 on freezing the document model and
   the plugin protocol. The libraries ship because a binary cannot be published with unpublished
   path dependencies — not because anyone should build on them yet.
-- `cargo publish --workspace --dry-run` passes for all seven, READMEs included in the tarballs.
+- `cargo publish --workspace` derives the order itself: `core` and `term`, then `backend`, `detect`,
+  `layout`, `read-text`, and `termdoc` last.
 
-To actually publish:
+### The trap for the next release
 
-```bash
-cargo login                                    # interactive; no credentials on this machine yet
-cargo publish --workspace --dry-run            # read the file list one more time
-cargo publish --workspace                      # irreversible
-```
+**crates.io rate-limits *new* crates: a burst of five, then roughly one per ten minutes.** A single
+`cargo publish --workspace` therefore cannot create seven crates in one go. It uploaded five, then
+failed with `429` on the sixth, leaving the flagship name unclaimed — the two stragglers went up on
+a retry loop over the following twenty minutes.
 
-`--workspace` derives the order itself: `core` and `term`, then `backend`, `detect`, `layout`,
-`read-text`, and `termdoc` last. A published version can be yanked but never replaced or deleted,
-and the name is taken permanently.
+This only bites when *creating* crates. Publishing new **versions** of crates that already exist has
+a far looser limit, so future releases are a single `cargo publish --workspace`. But when M1's
+`termdoc-read-data` lands, or M2's `termdoc-tui`, that new crate hits the new-crate limit again:
+publish it on its own first, then release the rest.
 
-Afterwards, add the crates.io and docs.rs badges to `README.md`, and consider whether `0.1.0` should
-instead be `0.0.1` if you would rather signal "reserved" than "usable" — the binary genuinely works,
-so `0.1.0` is defensible.
+Also worth knowing: a published version can be yanked but never replaced or deleted, `cargo publish`
+refuses a dirty working tree, and crates.io rejects the upload outright if the account's email is
+not verified.
+
+Still open: the crates.io and docs.rs badges are not in `README.md` yet.

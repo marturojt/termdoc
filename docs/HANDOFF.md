@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,100 lines across 7 crates |
-| Tests | **258**, all green |
+| Tests | **266**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -75,11 +75,15 @@ suite has no known flakiness.
 
 The remaining M1 work, in the order I would keep.
 
-### M1-1. Structured data readers — JSON, YAML, TOML, XML  ← start here
+### M1-1. Structured data readers — ~~JSON~~, YAML, TOML, XML  ← JSON landed; YAML next
 
-A new `crates/termdoc-read-data/` depending only on `termdoc-core`. Dependencies already vetted and
-pinned in the workspace manifest comments: `serde_json` 1.0, `yaml-rust2` 0.11, `toml` 1.1,
-`quick-xml` 0.41.
+`crates/termdoc-read-data/` **exists** and carries the JSON reader. Remaining dependencies, already
+vetted: `yaml-rust2` 0.11, `toml` 1.1, `quick-xml` 0.41.
+
+**Read `json.rs`'s module header before adding the next one.** It records the two things the
+measurement caught: that a ceiling derived from the parser alone is four times too generous because
+the pipeline costs more than `serde_json` does, and that the layout engine emits one line per `Text`
+event inside `Preformatted`, which is why the output carries no per-token styling.
 
 Points worth deciding deliberately rather than by default:
 

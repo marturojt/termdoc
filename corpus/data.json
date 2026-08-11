@@ -1,0 +1,1 @@
+{"name":"termdoc","version":"0.1.0","formats":{"rendered":["markdown","text","log","json"],"detected":["yaml","toml","xml","csv"]},"perf":{"startup_ms":3.9,"own_memory_mb":1.4,"streaming":true},"pager":null,"unicode":"café — 日本語"}

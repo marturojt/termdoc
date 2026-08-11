@@ -21,6 +21,7 @@ pub fn build_registry() -> Registry {
     // this build may have no reader for, which is handled by the fallback in `pick_reader`.
     termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
+    termdoc_read_data::register(&mut registry);
     // In M4, discovered plugins get added here. Order matters: because they register later,
     // a plugin can deliberately replace a built-in.
     registry
@@ -36,8 +37,7 @@ pub fn build_registry() -> Registry {
 fn readable_as_text(format: FormatId) -> bool {
     matches!(
         format,
-        FormatId::Json
-            | FormatId::Yaml
+        FormatId::Yaml
             | FormatId::Toml
             | FormatId::Xml
             | FormatId::Csv

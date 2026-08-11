@@ -65,6 +65,7 @@ fn render(path: &PathBuf, width: usize, fidelity: Fidelity) -> String {
     // Both halves are needed: detection names the format, the readers know how to read it.
     termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
+    termdoc_read_data::register(&mut registry);
     let format = registry.detect_or_fallback(&src).format;
     let reader = registry.reader_for(format).expect("a reader is available");
 
@@ -123,6 +124,9 @@ snapshot_matrix!(basic, "basic.md", [40usize, 80]);
 snapshot_matrix!(tables, "tables.md", [30usize, 60, 100]);
 snapshot_matrix!(unicode, "unicode.md", [20usize, 40, 80]);
 snapshot_matrix!(plain_text, "plain.txt", [40usize]);
+// Minified on purpose: what the JSON reader buys is structure, and a snapshot of
+// already-indented input would not show it.
+snapshot_matrix!(data_json, "data.json", [40usize, 80]);
 
 /// Degrading changes the appearance, never the content.
 ///

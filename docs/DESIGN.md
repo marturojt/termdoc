@@ -278,6 +278,7 @@ The permitted dependency directions — **anything else is a compile error**:
 ```
 termdoc-cli        → everything
 termdoc-read-*     → core                    (does NOT see backend, layout or term)
+                                             read-text: md/txt/log · read-data: json
 termdoc-backend    → core, term
 termdoc-layout     → core, term
 termdoc-tui        → core, layout, backend, term

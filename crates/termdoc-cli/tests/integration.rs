@@ -393,17 +393,21 @@ fn an_unknown_encoding_is_refused_with_a_hint() {
 #[test]
 fn a_format_without_a_reader_still_shows_its_content() {
     // Mid-roadmap, detection names more formats than there are readers. Refusing to display a
-    // .json file merely because its reader has not landed would be worse than showing it as
+    // .yaml file merely because its reader has not landed would be worse than showing it as
     // text, and it contradicts the point of a universal viewer.
-    let path = scratch("a.json", br#"{"key": "value"}"#);
+    //
+    // This used to use JSON, which gained a reader in M1. Whichever format stands in here has
+    // to be one with no reader yet, so this test moves down the roadmap as readers land, and
+    // it disappears entirely once every detected text format has one.
+    let path = scratch("a.yaml", b"key: value\nother: 2\n");
     let (stdout, stderr, code) = run(&[path.to_str().unwrap()]);
     assert_eq!(code, 0, "it must not be an error");
     assert!(
-        stdout.contains("\"key\""),
+        stdout.contains("key: value"),
         "the content must be there: {stdout}"
     );
     assert!(
-        stderr.contains("no json reader yet"),
+        stderr.contains("no yaml reader yet"),
         "and it must explain why it looks plain: {stderr}"
     );
     // The message must be one clean line, with no source-indentation leaking into it.
@@ -415,7 +419,7 @@ fn a_format_without_a_reader_still_shows_its_content() {
 
 #[test]
 fn strict_turns_the_fallback_warning_into_a_failure() {
-    let path = scratch("a.json", br#"{"a": 1}"#);
+    let path = scratch("a.yaml", b"a: 1\nb: 2\n");
     let (_, _, code) = run(&["--strict", path.to_str().unwrap()]);
     assert_eq!(code, 1, "--strict promotes warnings to errors");
 }

@@ -1,0 +1,19 @@
+[package]
+name = "termdoc-read-data"
+description = "Structured data readers for termdoc: JSON, YAML, TOML and XML"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+authors.workspace = true
+keywords = ["json", "yaml", "toml", "xml", "viewer"]
+categories = ["text-processing", "parsing"]
+
+# LAYERING INVARIANT: core only. A reader describes a document; it never decides how the
+# document looks, so it cannot see the layout or a backend.
+[dependencies]
+termdoc-core.workspace = true
+serde_json.workspace = true

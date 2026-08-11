@@ -27,6 +27,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
     // A reader only describes the document. If it could see a backend, it would end up
     // emitting ANSI and the ability to add backends would be lost.
     ("termdoc-read-text", &["termdoc-core"]),
+    ("termdoc-read-data", &["termdoc-core"]),
     // The CLI is the only crate that wires things together: it may see everything.
     (
         "termdoc-cli",
@@ -36,6 +37,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "termdoc-layout",
             "termdoc-backend",
             "termdoc-read-text",
+            "termdoc-read-data",
             "termdoc-detect",
         ],
     ),

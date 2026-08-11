@@ -1,0 +1,29 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+{
+  "formats": {
+    "detected": [
+      "yaml",
+      "toml",
+      "xml",
+      "csv"
+    ],
+    "rendered": [
+      "markdown",
+      "text",
+      "log",
+      "json"
+    ]
+  },
+  "name": "termdoc",
+  "pager": null,
+  "perf": {
+    "own_memory_mb": 1.4,
+    "startup_ms": 3.9,
+    "streaming": true
+  },
+  "unicode": "café — 日本語",
+  "version": "0.1.0"
+}

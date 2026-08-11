@@ -2,6 +2,9 @@
 
 A universal document viewer for the terminal.
 
+[![crates.io](https://img.shields.io/crates/v/termdoc.svg)](https://crates.io/crates/termdoc)
+[![CI](https://github.com/marturojt/termdoc/actions/workflows/ci.yml/badge.svg)](https://github.com/marturojt/termdoc/actions/workflows/ci.yml)
+
 `termdoc` reads any document and renders it as well as the terminal allows. It never opens an
 external application, and it degrades gracefully based on what the terminal can actually do.
 
@@ -38,6 +41,14 @@ decodes non-UTF-8 files correctly. The dedicated readers for those formats are n
 lands, a recognized-but-unreadable text format is shown as plain text with a warning.
 
 The full roadmap is in [`docs/DESIGN.md`](docs/DESIGN.md) §11.
+
+## Install
+
+```bash
+cargo install termdoc
+```
+
+Or from source:
 
 ```bash
 cargo build --release

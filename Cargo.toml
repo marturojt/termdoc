@@ -16,12 +16,15 @@ edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/marturojt/termdoc"
-homepage = "https://github.com/marturojt/termdoc"
+homepage = "https://termdoc.app"
 readme = "README.md"
 authors = ["Arturo Jimenez"]
 # Shared across the workspace; a crate overrides these when it is about something
 # narrower than "viewing documents in a terminal". crates.io caps both at 5.
-keywords = ["terminal", "viewer", "cli", "markdown", "pager"]
+#
+# Not "pager": there is no pager yet — that is M2 — and a keyword is a claim about
+# what someone searching will find, not about what is planned.
+keywords = ["terminal", "document", "viewer", "cli", "markdown"]
 categories = ["command-line-utilities", "text-processing"]
 
 [workspace.dependencies]

@@ -1,11 +1,16 @@
 # termdoc design
 
-> Architecture document. Status: **M0 complete**.
-> Last updated: 2026-08-10.
+> Architecture document. Status: **M0 complete, M1 in progress**.
+> Last updated: 2026-08-11.
 
 `termdoc` is a universal document viewer for the terminal. It reads any document and renders it
 as well as the terminal allows, never opening an external application and degrading gracefully
 based on the terminal's real capabilities.
+
+> **This document describes the target, not today.** It is the architecture the project is being
+> built towards, so it speaks of readers and a TUI that do not exist yet. For what actually works
+> in the current build, the README's format table is the honest answer, and `termdoc --formats` is
+> the authoritative one. §11 says which milestone brings what.
 
 It is not an editor. It is not a converter. It is not an IDE.
 
@@ -640,7 +645,8 @@ python3 scripts/perf-gate.py                # startup, memory, lazy output
 
 ## 14. Publishing
 
-Seven crates go to crates.io, and the name that matters is claimed by the binary.
+**Done: all seven crates are live on crates.io at `0.1.0` since 2026-08-10**, and the name that
+matters is claimed by the binary. What follows is why it is shaped this way.
 
 ### The package is `termdoc`, the directory is `crates/termdoc-cli/`
 
@@ -688,27 +694,31 @@ measured in stars, forks and watchers, with thresholds Homebrew documents in *Ac
 and revises over time. A newly published project does not clear it, and submitting anyway wastes a
 maintainer's review. Revisit when the project has users.
 
-**An own tap** is available immediately and needs nobody's approval. The repository must be named
-`homebrew-<name>`, so `marturojt/homebrew-termdoc`, which users then reach as:
+**An own tap** needs nobody's approval — and **`marturojt/homebrew-tap` already exists**, carrying
+a working `Formula/dapctl.rb`. termdoc adds a second formula to it rather than creating a tap:
 
 ```bash
-brew install marturojt/termdoc/termdoc
+brew install marturojt/tap/termdoc
 ```
 
-The plan is therefore: tap now, and migrate to `homebrew-core` when the notability bar is cleared.
-A formula in a tap and a formula in core are nearly the same file, so this is not wasted work.
+The plan is therefore: this tap now, and migrate to `homebrew-core` when the notability bar is
+cleared. A formula in a tap and a formula in core are nearly the same file, so this is not wasted
+work.
 
 ### The prerequisite nobody thinks of first: tagged releases
 
-**There are no git tags and no GitHub releases.** A formula points at an immutable source tarball
-plus its `sha256`, so nothing can be written until `v0.1.0` is tagged and released. That is the
-first task, not a detail of the last one.
+**There are no git tags and no GitHub releases.** A formula points at an immutable tarball plus its
+`sha256`, so nothing can be written until `v0.1.0` is tagged and released. That is the first task,
+not a detail of the last one.
 
-### Build from source, or ship bottles?
+### Ship prebuilt binaries, not a source build
 
-The formula can either compile on the user's machine or download a prebuilt binary.
+The existing `dapctl.rb` already settles this question, and it settles it the right way: it ships
+**prebuilt binaries** per platform — macOS universal, Linux x86_64, Linux aarch64 — with a `test do`
+block, and `dapctl`'s `.github/workflows/release.yml` is what builds them. Copy that shape; it is
+proven and it belongs to the same author.
 
-Building from source is a handful of lines:
+The source-build alternative is a handful of lines:
 
 ```ruby
 depends_on "rust" => :build
@@ -718,11 +728,11 @@ def install
 end
 ```
 
-**But this project has a specific reason not to leave it there.** The workspace's
-`[profile.release]` sets `lto = "fat"` and `codegen-units = 1`, and that profile *does* apply when
-building from the repository tarball. Those settings buy a fast, small binary at the cost of a slow
-link, which is the right trade for a release artifact built once — and the wrong one for something
-every user compiles on their own laptop while waiting.
+**But this project has a specific reason to avoid it.** The workspace's `[profile.release]` sets
+`lto = "fat"` and `codegen-units = 1`, and that profile *does* apply when building from the
+repository tarball. Those settings buy a fast, small binary at the cost of a slow link, which is the
+right trade for a release artifact built once in CI — and the wrong one for something every user
+compiles on their own laptop while waiting.
 
 So: source build to get the tap working, then bottles built in CI from tagged releases, which is
 also what makes `brew install` feel instant. Bottles mean a release workflow producing macOS
@@ -732,14 +742,13 @@ arm64, macOS x86_64 and Linux artifacts.
 
 A tap that lags the releases is worse than no tap. Whatever ships must bump the formula's `url`
 and `sha256` automatically on each tagged release, from the same workflow that publishes to
-crates.io.
+crates.io. `dapctl` already does this; reuse its workflow rather than inventing one.
 
 ### Acceptance
 
 ```bash
-brew tap marturojt/termdoc
-brew install --build-from-source termdoc   # compiles and links
-brew audit --strict --new termdoc          # what homebrew-core would check
-brew test termdoc                          # the formula's own test block runs
-termdoc --version                          # matches the tagged release
+brew install marturojt/tap/termdoc     # from the existing tap
+brew audit --strict --new termdoc      # what homebrew-core would check
+brew test termdoc                      # the formula's own test block runs
+termdoc --version                      # matches the tagged release
 ```

@@ -16,6 +16,11 @@ It is not an editor, not a converter, and not an IDE.
 Status: **M0 complete**, **M1 in progress** — detection and encoding landed; the data, code and log
 readers have not. Roadmap in `docs/DESIGN.md` §11.
 
+Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
+[termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
+repository. **`termdoc --formats` is the authoritative answer** to what this build can read; the
+README's table must be kept honest against it.
+
 Code, comments, test names and user-facing messages are all in **English**.
 
 ## Commands
@@ -42,6 +47,10 @@ git diff crates/termdoc-cli/tests/snapshots/    # <- actually read this before c
 
 # Performance gates (startup, own memory, lazy output)
 cargo build --release && python3 scripts/perf-gate.py
+
+# The README's demo image, regenerated from a real run. Do this whenever the
+# renderer's colours, glyphs or wrapping change, or the asset starts lying.
+python3 scripts/gen-demo-image.py
 ```
 
 CI (`.github/workflows/ci.yml`) runs the tests on Linux/macOS/Windows, plus `fmt`, `clippy`, each
@@ -137,6 +146,8 @@ Do not break these without changing the design first:
 | Magic bytes and intra-ZIP | `crates/termdoc-detect/src/magic.rs` |
 | CLI flags | `crates/termdoc-cli/src/cli.rs` |
 | Pipeline wiring | `crates/termdoc-cli/src/run.rs` |
+| The README demo image | `scripts/gen-demo-image.py` → `docs/assets/demo.png` |
+| Contributor entry point | `CONTRIBUTING.md` (points at *Adding a reader* below) |
 
 ### Testing strategy
 

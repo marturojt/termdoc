@@ -22,8 +22,9 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | | |
 |---|---|
 | Repo | `git@github.com:marturojt/termdoc.git`, branch `main` |
-| Commits | 7, history is clean and in English |
+| Commits | 11, history is clean and in English |
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
+| Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,100 lines across 7 crates |
 | Tests | **258**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
@@ -281,7 +282,7 @@ The M1 items in §3 are the roadmap. These are not: they are release engineering
 any milestone, and they can be picked up whenever there is an appetite for something other than
 readers. Kept here so they stop living in someone's head.
 
-### B1. A Homebrew tap
+### B1. A Homebrew formula
 
 **Why:** `cargo install termdoc` works, but it needs a Rust toolchain. Most people who want a
 document viewer do not have one, and will not install one to get it.
@@ -291,20 +292,21 @@ document viewer do not have one, and will not install one to get it.
 1. **Tag `v0.1.0` and cut a GitHub release.** There are no tags in this repository and no releases.
    A formula points at an immutable tarball plus a `sha256`, so nothing else can start until this
    exists. This is genuinely the first step, not paperwork.
-2. **Create `marturojt/homebrew-termdoc`** — the `homebrew-` prefix is required for
-   `brew tap marturojt/termdoc` to resolve.
-3. **Write `Formula/termdoc.rb`**, building from source via `std_cargo_args(path:
-   "crates/termdoc-cli")`. Note the path: the package is `termdoc` but the directory keeps its
-   `-cli` suffix (§10).
-4. **Then bottles.** The workspace sets `lto = "fat"` and `codegen-units = 1`, which is right for an
-   artifact built once in CI and wrong for something every user compiles while waiting. Prebuilt
-   binaries are what make `brew install` feel instant.
+2. **Add `Formula/termdoc.rb` to the existing `marturojt/homebrew-tap`.** The tap already exists
+   and already carries a working `dapctl.rb`, so there is no tap to create — users reach it as
+   `brew install marturojt/tap/termdoc`.
+3. **Copy the shape of `dapctl.rb`**, which ships prebuilt binaries per platform rather than
+   building from source, and copy `dapctl`'s `.github/workflows/release.yml` that produces them.
+   Both are proven and belong to the same author.
+4. **Do not build from source in the formula.** The workspace sets `lto = "fat"` and
+   `codegen-units = 1`, which is right for an artifact built once in CI and wrong for something
+   every user compiles while waiting.
 5. **Automate the formula bump** from the release workflow. A tap that lags its releases is worse
    than no tap.
 
 **Not `homebrew-core` yet.** It applies a notability bar in stars, forks and watchers that a newly
-published project does not clear. Own tap now, core when there are users; the formula is nearly the
-same file either way, so nothing is thrown away.
+published project does not clear. The existing tap now, core when there are users; the formula is
+nearly the same file either way, so nothing is thrown away.
 
 **Related, and cheaper:** static musl binaries attached to the release would serve Linux users who
 have neither Rust nor Homebrew, and are a prerequisite for bottles anyway.

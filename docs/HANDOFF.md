@@ -289,9 +289,10 @@ document viewer do not have one, and will not install one to get it.
 
 **The whole plan, with its reasoning, is DESIGN.md §15.** The short version, in order:
 
-1. **Tag `v0.1.0` and cut a GitHub release.** There are no tags in this repository and no releases.
-   A formula points at an immutable tarball plus a `sha256`, so nothing else can start until this
-   exists. This is genuinely the first step, not paperwork.
+1. ~~**Tag `v0.1.0` and cut a GitHub release.**~~ **Done (2026-08-11).** `.github/workflows/release.yml`
+   builds macOS universal, Linux x86_64 and aarch64, and Windows on any `v*` tag, verifies each
+   artifact by running it, and drafts a release carrying `SHA256SUMS.txt` — which is the file the
+   formula reads. The URLs a formula needs now exist.
 2. **Add `Formula/termdoc.rb` to the existing `marturojt/homebrew-tap`.** The tap already exists
    and already carries a working `dapctl.rb`, so there is no tap to create — users reach it as
    `brew install marturojt/tap/termdoc`.

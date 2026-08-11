@@ -6,6 +6,7 @@
 [![CI](https://github.com/marturojt/termdoc/actions/workflows/ci.yml/badge.svg)](https://github.com/marturojt/termdoc/actions/workflows/ci.yml)
 [![docs.rs](https://img.shields.io/docsrs/termdoc-core?label=docs.rs)](https://docs.rs/termdoc-core)
 [![license](https://img.shields.io/crates/l/termdoc.svg)](#license)
+[![release](https://img.shields.io/github/v/release/marturojt/termdoc)](https://github.com/marturojt/termdoc/releases/latest)
 [![rustc](https://img.shields.io/badge/rustc-1.85%2B-blue.svg)](https://www.rust-lang.org)
 
 ![termdoc rendering a Markdown file](docs/assets/demo.png)
@@ -25,8 +26,18 @@ It is not an editor. It is not a converter. It is not an IDE.
 cargo install termdoc
 ```
 
-Requires Rust 1.85+ ([rustup.rs](https://rustup.rs)). Linux, macOS and Windows are
-all covered by CI. Prebuilt binaries and a Homebrew tap are on the [roadmap](#roadmap).
+Or take a **prebuilt binary** from the
+[latest release](https://github.com/marturojt/termdoc/releases/latest) — macOS universal,
+Linux x86_64 and aarch64, Windows x86_64, with `SHA256SUMS.txt` covering every archive:
+
+```bash
+tar -xzf termdoc-v0.1.0-universal-apple-darwin.tar.gz
+./termdoc README.md
+```
+
+Installing from source requires Rust 1.85+ ([rustup.rs](https://rustup.rs)). All three
+platforms are covered by CI, and every released binary is executed by CI before the release
+is drafted. A Homebrew formula is on the [roadmap](#roadmap).
 
 ## Quick start
 

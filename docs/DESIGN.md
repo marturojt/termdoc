@@ -707,9 +707,10 @@ work.
 
 ### The prerequisite nobody thinks of first: tagged releases
 
-**There are no git tags and no GitHub releases.** A formula points at an immutable tarball plus its
-`sha256`, so nothing can be written until `v0.1.0` is tagged and released. That is the first task,
-not a detail of the last one.
+A formula points at an immutable tarball plus its `sha256`, so nothing can be written until a
+release exists. **This was the blocker and it is now cleared:** `v0.1.0` is tagged and released,
+and `.github/workflows/release.yml` produces the per-platform archives plus `SHA256SUMS.txt` on
+every `v*` tag. A future release needs no extra work for the formula to have URLs to point at.
 
 ### Ship prebuilt binaries, not a source build
 

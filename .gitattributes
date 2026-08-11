@@ -11,3 +11,8 @@
 # normalizing it would quietly remove that coverage.
 *.snap      -text
 corpus/**   -text
+
+# Binary assets. `text=auto` would in practice detect these correctly from their NUL
+# bytes, but this file's whole point is not to leave line endings to detection.
+docs/assets/**  -text
+*.png           -text

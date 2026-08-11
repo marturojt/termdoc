@@ -72,9 +72,9 @@ suite has no known flakiness.
 
 ## 3. What to do next
 
-The remaining M1 work, in the order I would keep. The tracked task list has these as items 11–14.
+The remaining M1 work, in the order I would keep.
 
-### 11. Structured data readers — JSON, YAML, TOML, XML  ← start here
+### M1-1. Structured data readers — JSON, YAML, TOML, XML  ← start here
 
 A new `crates/termdoc-read-data/` depending only on `termdoc-core`. Dependencies already vetted and
 pinned in the workspace manifest comments: `serde_json` 1.0, `yaml-rust2` 0.11, `toml` 1.1,
@@ -94,7 +94,7 @@ Points worth deciding deliberately rather than by default:
   reach for a `serde` DOM out of habit — and read the warning in §9 of DESIGN.md before touching any
   YAML crate.
 
-### 12. CSV as a table
+### M1-2. CSV as a table
 
 Emit `Tag::Table` and reuse the layout's width allocation — the interesting work is already done and
 already tested. `termdoc_detect::detect_delimiter` gives you the delimiter and column count.
@@ -103,7 +103,7 @@ already tested. `termdoc_detect::detect_delimiter` gives you the delimiter and c
 input. The catch is that `TableBuilder` buffers the whole table to allocate widths, so a huge CSV
 needs either a row cap with an honest warning or a two-pass approach. Decide and document it.
 
-### 13. Syntax highlighting
+### M1-3. Syntax highlighting
 
 `syntect` 5.3 with `two-face` 0.5 (which bundles `bat`'s assets). Two jobs:
 
@@ -117,7 +117,7 @@ that gate exists precisely to catch this.
 `termdoc_detect::language_for(&src)` already resolves the grammar name from the extension, the
 filename or the shebang.
 
-### 14. Log reader and incremental stdin
+### M1-4. Log reader and incremental stdin
 
 Timestamp and severity recognition with per-level highlighting. `termdoc-detect` already recognizes
 ISO-8601, bare clocks and syslog shapes in `structural.rs::starts_with_timestamp` — reuse that
@@ -272,3 +272,39 @@ refuses a dirty working tree, and crates.io rejects the upload outright if the a
 not verified.
 
 Still open: the crates.io and docs.rs badges are not in `README.md` yet.
+
+---
+
+## 11. Backlog — work that is not a milestone
+
+The M1 items in §3 are the roadmap. These are not: they are release engineering, they do not block
+any milestone, and they can be picked up whenever there is an appetite for something other than
+readers. Kept here so they stop living in someone's head.
+
+### B1. A Homebrew tap
+
+**Why:** `cargo install termdoc` works, but it needs a Rust toolchain. Most people who want a
+document viewer do not have one, and will not install one to get it.
+
+**The whole plan, with its reasoning, is DESIGN.md §15.** The short version, in order:
+
+1. **Tag `v0.1.0` and cut a GitHub release.** There are no tags in this repository and no releases.
+   A formula points at an immutable tarball plus a `sha256`, so nothing else can start until this
+   exists. This is genuinely the first step, not paperwork.
+2. **Create `marturojt/homebrew-termdoc`** — the `homebrew-` prefix is required for
+   `brew tap marturojt/termdoc` to resolve.
+3. **Write `Formula/termdoc.rb`**, building from source via `std_cargo_args(path:
+   "crates/termdoc-cli")`. Note the path: the package is `termdoc` but the directory keeps its
+   `-cli` suffix (§10).
+4. **Then bottles.** The workspace sets `lto = "fat"` and `codegen-units = 1`, which is right for an
+   artifact built once in CI and wrong for something every user compiles while waiting. Prebuilt
+   binaries are what make `brew install` feel instant.
+5. **Automate the formula bump** from the release workflow. A tap that lags its releases is worse
+   than no tap.
+
+**Not `homebrew-core` yet.** It applies a notability bar in stars, forks and watchers that a newly
+published project does not clear. Own tap now, core when there are users; the formula is nearly the
+same file either way, so nothing is thrown away.
+
+**Related, and cheaper:** static musl binaries attached to the release would serve Linux users who
+have neither Rust nor Homebrew, and are a prerequisite for bottles anyway.

@@ -562,7 +562,8 @@ Every milestone leaves a **usable** tool, not scaffolding.
 | **M5 Beyond** | PPTX, XLSX, Jupyter, SVG, diagrams, math, scientific formats | |
 
 Versioning stays at `0.x` through M3; `1.0` once the plugin protocol and the document model
-freeze. Distribution: `cargo install`, Homebrew, AUR, Scoop, and static musl binaries.
+freeze. Distribution — `cargo install` (live), Homebrew, AUR, Scoop and static musl binaries — is
+planned in §15; it runs alongside the milestones rather than inside one.
 
 ---
 
@@ -670,3 +671,75 @@ The order it derives is `core` and `term` first, then `detect`, `layout`, `backe
 
 Publishing is irreversible: a version can be yanked, but never replaced or deleted, and the name is
 taken forever. Run `cargo publish --workspace --dry-run` and read the packaged file list first.
+
+---
+
+## 15. Distribution
+
+`cargo install termdoc` works today and is the baseline. Everything below exists because it
+requires a Rust toolchain, which most people who would use a document viewer do not have.
+
+### Homebrew: an own tap first, `homebrew-core` later
+
+Two routes, and only one of them is available now.
+
+**`homebrew-core`** gives the short `brew install termdoc`, but it applies a notability bar —
+measured in stars, forks and watchers, with thresholds Homebrew documents in *Acceptable Formulae*
+and revises over time. A newly published project does not clear it, and submitting anyway wastes a
+maintainer's review. Revisit when the project has users.
+
+**An own tap** is available immediately and needs nobody's approval. The repository must be named
+`homebrew-<name>`, so `marturojt/homebrew-termdoc`, which users then reach as:
+
+```bash
+brew install marturojt/termdoc/termdoc
+```
+
+The plan is therefore: tap now, and migrate to `homebrew-core` when the notability bar is cleared.
+A formula in a tap and a formula in core are nearly the same file, so this is not wasted work.
+
+### The prerequisite nobody thinks of first: tagged releases
+
+**There are no git tags and no GitHub releases.** A formula points at an immutable source tarball
+plus its `sha256`, so nothing can be written until `v0.1.0` is tagged and released. That is the
+first task, not a detail of the last one.
+
+### Build from source, or ship bottles?
+
+The formula can either compile on the user's machine or download a prebuilt binary.
+
+Building from source is a handful of lines:
+
+```ruby
+depends_on "rust" => :build
+
+def install
+  system "cargo", "install", *std_cargo_args(path: "crates/termdoc-cli")
+end
+```
+
+**But this project has a specific reason not to leave it there.** The workspace's
+`[profile.release]` sets `lto = "fat"` and `codegen-units = 1`, and that profile *does* apply when
+building from the repository tarball. Those settings buy a fast, small binary at the cost of a slow
+link, which is the right trade for a release artifact built once — and the wrong one for something
+every user compiles on their own laptop while waiting.
+
+So: source build to get the tap working, then bottles built in CI from tagged releases, which is
+also what makes `brew install` feel instant. Bottles mean a release workflow producing macOS
+arm64, macOS x86_64 and Linux artifacts.
+
+### Keeping the formula current
+
+A tap that lags the releases is worse than no tap. Whatever ships must bump the formula's `url`
+and `sha256` automatically on each tagged release, from the same workflow that publishes to
+crates.io.
+
+### Acceptance
+
+```bash
+brew tap marturojt/termdoc
+brew install --build-from-source termdoc   # compiles and links
+brew audit --strict --new termdoc          # what homebrew-core would check
+brew test termdoc                          # the formula's own test block runs
+termdoc --version                          # matches the tagged release
+```

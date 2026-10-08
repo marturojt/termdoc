@@ -30,9 +30,10 @@ BINARY = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "target/release/term
 
 MAX_STARTUP_MS = float(os.environ.get("TERMDOC_MAX_STARTUP_MS", "10"))
 MAX_OWN_MEM_MB = float(os.environ.get("TERMDOC_MAX_OWN_MEM_MB", "50"))
-# One highlighted language, and the same colour-forced run over a document with no code at all.
+# What colour-forced highlighting may add to a plain run: for one language, and for a document
+# with no code at all.
 MAX_HIGHLIGHT_MEM_MB = float(os.environ.get("TERMDOC_MAX_HIGHLIGHT_MEM_MB", "30"))
-MAX_NO_CODE_MEM_MB = float(os.environ.get("TERMDOC_MAX_NO_CODE_MEM_MB", "5"))
+MAX_NO_CODE_MEM_MB = float(os.environ.get("TERMDOC_MAX_NO_CODE_MEM_MB", "3"))
 CORPUS_LINES = int(os.environ.get("TERMDOC_CORPUS_LINES", "300000"))
 
 failures: list[str] = []
@@ -83,6 +84,14 @@ def gate_startup() -> None:
     (ok if median <= MAX_STARTUP_MS else fail)("startup", detail)
 
 
+# Runs a command and prints the peak resident size of that one child, in the OS's own unit.
+_PEAK_RSS_SNIPPET = (
+    "import resource, subprocess, sys;"
+    "subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL);"
+    "print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)"
+)
+
+
 def own_memory_mb(args: list) -> float | None:
     """The child process's anonymous memory, in MB.
 
@@ -107,12 +116,20 @@ def own_memory_mb(args: list) -> float | None:
 
     if system == "Linux":
         # Linux has no direct equivalent, so the child's own maximum is read instead.
-        before = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        subprocess.run(list(map(str, args)), capture_output=True)
-        after = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+        #
+        # `RUSAGE_CHILDREN` is the maximum over *every* child this process has waited for, so
+        # reading it here would report the largest process of the whole run, not this one. A fresh
+        # interpreter per measurement has exactly one child, which makes the figure this child's.
+        r = subprocess.run(
+            [sys.executable, "-c", _PEAK_RSS_SNIPPET, *map(str, args)],
+            capture_output=True,
+            text=True,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
         # On Linux ru_maxrss is in KiB and *includes* mapped pages, so this figure is a
         # pessimistic ceiling rather than the own memory. It is reported as such.
-        return max(after, before) / 1024
+        return int(r.stdout.strip()) / 1024
 
     return None
 
@@ -120,31 +137,33 @@ def own_memory_mb(args: list) -> float | None:
 def gate_highlight() -> None:
     """Syntax highlighting is paid for only where there is code.
 
-    Two things are pinned, both with colour forced (a pipe skips highlighting, which would
-    make the gate measure nothing). A document with no code must not load a grammar, which is
-    what keeps highlighting out of everyone else's startup. And one language must stay within
-    what was measured: every grammar costs roughly 10-18 MB (src/engine.rs in termdoc-read-code),
-    and a regression there, say a feature flag that pulls in a heavier regex engine, should be a
-    failure rather than a surprise.
+    Both checks run with colour forced (a pipe skips highlighting, which would make the gate
+    measure nothing), and both are *relative to the same binary on a plain document*. That
+    cancels what differs between platforms, chiefly that Linux reports resident size, which
+    includes the executable's own pages, where macOS reports anonymous memory.
 
-    On Linux the figure is a pessimistic ceiling (see `own_memory_mb`), and children's maximum
-    is cumulative, so the small measurement is taken first and the limits are loosened.
+    A document with no code must not load a grammar, which is what keeps highlighting out of
+    everyone else's startup. And one language must stay within what was measured: every grammar
+    costs roughly 10-18 MB (`engine.rs` in termdoc-read-code), and a regression there, say a
+    feature flag that pulls in a heavier regex engine, should be a failure rather than a surprise.
     """
-    linux = platform.system() == "Linux"
+    baseline = own_memory_mb([BINARY, ROOT / "corpus/plain.txt"])
+    if baseline is None:
+        print(f"  \033[33mSKIP\033[0m  highlighting — no method available on {platform.system()}")
+        return
+
     cases = [
-        ("highlighting: no code, no cost", ROOT / "corpus/plain.txt", MAX_NO_CODE_MEM_MB, 12),
-        ("highlighting: one language", ROOT / "corpus/code.rs", MAX_HIGHLIGHT_MEM_MB, 45),
+        ("highlighting: no code, no cost", ROOT / "corpus/plain.txt", MAX_NO_CODE_MEM_MB),
+        ("highlighting: one language", ROOT / "corpus/code.rs", MAX_HIGHLIGHT_MEM_MB),
     ]
-    for name, doc, strict, loose in cases:
+    for name, doc, limit in cases:
         mb = own_memory_mb([BINARY, "--color", "always", doc])
         if mb is None:
             print(f"  \033[33mSKIP\033[0m  {name} — no method available on {platform.system()}")
             continue
-        limit = max(strict, loose) if linux else strict
-        detail = f"{mb:.1f} MB (limit {limit:.0f} MB)"
-        if linux:
-            detail += " [pessimistic ceiling]"
-        (ok if mb <= limit else fail)(name, detail)
+        extra = mb - baseline
+        detail = f"+{extra:.1f} MB over a plain run of {baseline:.1f} MB (limit +{limit:.0f} MB)"
+        (ok if extra <= limit else fail)(name, detail)
 
 
 def gate_memory() -> None:
@@ -208,7 +227,6 @@ def main() -> int:
 
     print(f"performance gates — {platform.system()} — {BINARY}")
     gate_startup()
-    # Before the large-input gate: on Linux the children's maximum only ever grows.
     gate_highlight()
     gate_memory()
     if platform.system() != "Windows":

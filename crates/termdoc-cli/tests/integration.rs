@@ -587,3 +587,30 @@ fn strip_escapes(s: &str) -> String {
     }
     out
 }
+
+#[test]
+fn windows_line_endings_leave_no_cr() {
+    // The text reader hands the layout `one\r\n`; the layout trims it. Neither a stray CR nor
+    // a merged line may reach the output.
+    let path = scratch("crlf.txt", b"one\r\ntwo\r\nthree");
+    let (stdout, _, code) = run(&[path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert_eq!(stdout, "one\ntwo\nthree\n");
+}
+
+#[test]
+fn json_keys_and_values_share_a_line_but_not_a_style() {
+    let (stdout, _, code) = run(&["--color", "always", corpus("data.json").to_str().unwrap()]);
+    assert_eq!(code, 0);
+    // More than one SGR run on a line is the whole point: keys and scalars differ.
+    let styled_line = stdout
+        .lines()
+        .any(|l| l.matches('\x1b').count() >= 4 && l.contains(':'));
+    assert!(styled_line, "{stdout:?}");
+}
+
+#[test]
+fn json_has_no_escape_bytes_without_color() {
+    let (stdout, _, _) = run(&["--color", "never", corpus("data.json").to_str().unwrap()]);
+    assert!(!stdout.contains('\x1b'), "{stdout:?}");
+}

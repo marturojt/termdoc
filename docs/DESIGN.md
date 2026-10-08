@@ -1,7 +1,7 @@
 # termdoc design
 
 > Architecture document. Status: **M0 complete, M1 in progress**.
-> Last updated: 2026-08-11.
+> Last updated: 2026-10-08.
 
 `termdoc` is a universal document viewer for the terminal. It reads any document and renders it
 as well as the terminal allows, never opening an external application and degrading gracefully
@@ -167,6 +167,22 @@ pub type Events<'a> = Box<dyn Iterator<Item = Result<Spanned<Event<'a>>>> + 'a>;
 > `Tag::Preformatted` was also added, which was missing: plain text and logs need a block whose
 > source line breaks are meaningful and must **not** be reflowed, distinct from `CodeBlock`, which
 > additionally highlights syntax.
+
+> **Second correction: tokens, and lines that are assembled.** Inside `Preformatted` and
+> `CodeBlock` the first implementation took every `Text` event as one complete line, which made
+> it impossible for a JSON key and its value to be different colors: marking them with an inline
+> tag put each on a line of its own. Two changes together fix it.
+>
+> - `Tag::Token { role: TokenRole }` is an inline container naming what a span *is* — `Key`,
+>   `String`, `Number`, `Bool`, `Null`, `Punctuation`, `Comment`, `Name`, `Attribute`. Roles are
+>   syntax, never colors: the reader describes, the theme (`Theme::token_style`) decides.
+> - **In preformatted content, text accumulates until a newline closes the line.** A `Text`
+>   without a trailing newline stays open and the next one continues it; the block's `End`
+>   closes whatever is left, without adding a blank line. A reader therefore **keeps the
+>   terminator on each line** it emits (`"one\n"`), which costs nothing — the slice still
+>   borrows from the `mmap` — and the layout trims `\n` and `\r\n` itself.
+>
+> A syntax highlighter (M1-3) is the same shape: one line, several styled runs.
 
 Reasons, in order of weight:
 
@@ -367,6 +383,11 @@ Color:     truecolor → 256 → 16 → bold/underline only → nothing
 Links:     OSC 8 → text plus a numbered reference list [1]
 Headings:  styled → the source's own ATX notation (`##`)
 ```
+
+Token roles (JSON keys, numbers, comments) are not a ladder of their own: they are ordinary styles,
+so they descend the **Color** ladder with everything else, and with `ColorDepth::None` they emit no
+escape byte. Without color they are indistinguishable from the text around them, which is honest —
+the structure is carried by the indentation, not by the paint.
 
 **Detection:** `IsTerminal` for the TTY check; `COLORTERM`, `TERM` and terminfo for color;
 `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` honored. For graphics, an environment sniff

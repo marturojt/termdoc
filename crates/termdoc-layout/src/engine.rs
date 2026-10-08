@@ -17,7 +17,7 @@ use termdoc_term::{ColorDepth, Fidelity, UnicodeLevel};
 use crate::glyphs::Glyphs;
 use crate::table::TableBuilder;
 use crate::theme::Theme;
-use crate::wrap::{WrapBuffer, display_width, hard_wrap};
+use crate::wrap::{Part, WrapBuffer, display_width, hard_wrap_parts};
 
 /// Width of the line-number gutter, separator included.
 const GUTTER_DIGITS: usize = 4;
@@ -70,6 +70,9 @@ pub struct Layout<'a> {
     styles: Vec<Style>,
     links: Vec<Cow<'a, str>>,
     buf: WrapBuffer<'a>,
+    /// The line of preformatted content or code being assembled. Text accumulates here until
+    /// a newline closes it, so one line can carry runs in several styles.
+    pre_line: Vec<Part<'a>>,
     /// List nesting depth. Numbering comes from the reader in `Marker::Ordered`, so all
     /// that matters here is how deep we are.
     list_depth: usize,
@@ -100,6 +103,7 @@ impl<'a> Layout<'a> {
             styles: Vec::new(),
             links: Vec::new(),
             buf: WrapBuffer::new(),
+            pre_line: Vec::new(),
             list_depth: 0,
             table: None,
             pending_marker: None,
@@ -293,22 +297,25 @@ impl<'a> Layout<'a> {
         }
     }
 
+    /// Closes the line being assembled, if there is one.
+    ///
+    /// `force` is for a newline in the source: an empty line there is content. At the end of a
+    /// block it is not, so a block that ends in a newline does not grow a blank line.
+    fn flush_pre_line(&mut self, force: bool) {
+        if self.pre_line.is_empty() && !force {
+            return;
+        }
+        let parts = std::mem::take(&mut self.pre_line);
+        self.emit_pre_line(parts);
+    }
+
     /// One line of preformatted content or code: no reflow, only a hard chop.
-    fn emit_pre_line(&mut self, text: Cow<'a, str>, style: Style) {
+    fn emit_pre_line(&mut self, parts: Vec<Part<'a>>) {
         let prefix = self.prefix(false);
         let prefix_width: usize = prefix.iter().map(|s| display_width(&s.text)).sum();
         let avail = self.content_width().saturating_sub(prefix_width).max(1);
 
-        // `hard_wrap` borrows slices of the original; a `Cow::Owned` has to be copied.
-        let chunks: Vec<Cow<'a, str>> = match &text {
-            Cow::Borrowed(s) => hard_wrap(s, avail).into_iter().map(Cow::Borrowed).collect(),
-            Cow::Owned(s) => hard_wrap(s, avail)
-                .into_iter()
-                .map(|c| Cow::Owned(c.to_string()))
-                .collect(),
-        };
-
-        for (i, chunk) in chunks.into_iter().enumerate() {
+        for (i, chunk) in hard_wrap_parts(parts, avail).into_iter().enumerate() {
             let mut segments = Vec::new();
             if self.gutter_active() {
                 if i == 0 {
@@ -317,7 +324,11 @@ impl<'a> Layout<'a> {
                 segments.push(self.gutter_segment(i == 0));
             }
             segments.extend(prefix.iter().cloned());
-            segments.push(Segment::new(chunk, style));
+            segments.extend(
+                chunk
+                    .into_iter()
+                    .map(|(text, style)| Segment::new(text, style)),
+            );
             let total: usize = segments.iter().map(|s| display_width(&s.text)).sum();
             self.emit(Line::from_segments(segments, total));
         }
@@ -446,20 +457,34 @@ impl<'a> Layout<'a> {
             return;
         }
 
-        // In preformatted content and code, the source's line breaks are meaningful.
+        // In preformatted content and code, the source's line breaks are meaningful. Text
+        // accumulates into the current line and a newline closes it, which is what lets
+        // several runs in different styles share a line.
         if self.in_kind(TagKind::CodeBlock) || self.in_kind(TagKind::Preformatted) {
             let style = self.style();
             match text {
                 Cow::Borrowed(s) => {
                     for piece in s.split_inclusive('\n') {
+                        let closes = piece.ends_with('\n');
                         let trimmed = piece.trim_end_matches(['\n', '\r']);
-                        self.emit_pre_line(Cow::Borrowed(trimmed), style);
+                        if !trimmed.is_empty() {
+                            self.pre_line.push((Cow::Borrowed(trimmed), style));
+                        }
+                        if closes {
+                            self.flush_pre_line(true);
+                        }
                     }
                 }
                 Cow::Owned(s) => {
                     for piece in s.split_inclusive('\n') {
+                        let closes = piece.ends_with('\n');
                         let trimmed = piece.trim_end_matches(['\n', '\r']);
-                        self.emit_pre_line(Cow::Owned(trimmed.to_string()), style);
+                        if !trimmed.is_empty() {
+                            self.pre_line.push((Cow::Owned(trimmed.to_string()), style));
+                        }
+                        if closes {
+                            self.flush_pre_line(true);
+                        }
                     }
                 }
             }
@@ -630,6 +655,7 @@ impl<'a> Layout<'a> {
             Tag::Highlight => self.push_style(self.opts.theme.highlight),
             Tag::SmallCaps => self.push_style(self.opts.theme.emphasis),
             Tag::Sub | Tag::Super => self.push_style(self.opts.theme.emphasis),
+            Tag::Token { role } => self.push_style(self.opts.theme.token_style(role)),
             Tag::Link { href, .. } => {
                 self.push_style(self.opts.theme.link);
                 self.links.push(href);
@@ -671,9 +697,11 @@ impl<'a> Layout<'a> {
                 self.need_blank = true;
             }
             TagKind::Preformatted => {
+                self.flush_pre_line(false);
                 self.need_blank = true;
             }
             TagKind::CodeBlock => {
+                self.flush_pre_line(false);
                 self.pop_style();
                 self.need_blank = true;
             }
@@ -747,6 +775,7 @@ impl<'a> Layout<'a> {
             | TagKind::SmallCaps
             | TagKind::Sub
             | TagKind::Super
+            | TagKind::Token
             | TagKind::DefinitionTerm => {
                 self.pop_style();
                 self.stack.pop();
@@ -787,6 +816,7 @@ impl<'a> Layout<'a> {
 
     /// End of document: flush what is pending and append the reference list.
     fn finish(&mut self) {
+        self.flush_pre_line(false);
         self.flush_inline();
         if let Some(table) = self.table.take() {
             let lines = table.render(

@@ -391,6 +391,54 @@ pub fn hard_wrap(text: &str, width: usize) -> Vec<&str> {
     out
 }
 
+/// One run of text in one style: a line of preformatted content is a list of these.
+pub type Part<'a> = (Cow<'a, str>, Style);
+
+/// [`hard_wrap`] for a line made of several styled runs.
+///
+/// Chops at `width` cells, never inside a grapheme cluster, and keeps every run's style on
+/// the pieces it is split into. Borrowed runs stay borrowed.
+pub fn hard_wrap_parts<'a>(parts: Vec<Part<'a>>, width: usize) -> Vec<Vec<Part<'a>>> {
+    let width = width.max(MIN_WIDTH);
+    let total: usize = parts.iter().map(|(t, _)| display_width(t)).sum();
+    if total <= width {
+        return vec![parts];
+    }
+
+    fn slice<'a>(text: &Cow<'a, str>, from: usize, to: usize) -> Cow<'a, str> {
+        match text {
+            Cow::Borrowed(s) => Cow::Borrowed(&s[from..to]),
+            Cow::Owned(s) => Cow::Owned(s[from..to].to_string()),
+        }
+    }
+
+    let mut out: Vec<Vec<Part<'a>>> = Vec::new();
+    let mut current: Vec<Part<'a>> = Vec::new();
+    let mut acc = 0usize;
+    for (text, style) in parts {
+        let mut start = 0usize;
+        for (idx, gr) in text.grapheme_indices(true) {
+            let w = display_width(gr);
+            if acc + w > width && acc > 0 {
+                if idx > start {
+                    current.push((slice(&text, start, idx), style));
+                }
+                out.push(std::mem::take(&mut current));
+                start = idx;
+                acc = 0;
+            }
+            acc += w;
+        }
+        if start < text.len() {
+            current.push((slice(&text, start, text.len()), style));
+        }
+    }
+    if !current.is_empty() || out.is_empty() {
+        out.push(current);
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -525,6 +573,38 @@ mod tests {
                 seg.text
             );
         }
+    }
+
+    #[test]
+    fn hard_wrap_parts_keeps_each_runs_style_across_a_chop() {
+        let a = Style::bold();
+        let parts = vec![
+            (Cow::Borrowed("abcd"), a),
+            (Cow::Borrowed("efgh"), Style::PLAIN),
+        ];
+        let lines = hard_wrap_parts(parts, 6);
+        let shown: Vec<Vec<(String, bool)>> = lines
+            .iter()
+            .map(|l| l.iter().map(|(t, s)| (t.to_string(), *s == a)).collect())
+            .collect();
+        assert_eq!(
+            shown,
+            vec![
+                vec![("abcd".into(), true), ("ef".into(), false)],
+                vec![("gh".into(), false)],
+            ]
+        );
+    }
+
+    #[test]
+    fn hard_wrap_parts_stays_borrowed() {
+        let lines = hard_wrap_parts(vec![(Cow::Borrowed("abcdef"), Style::PLAIN)], 3);
+        assert!(
+            lines
+                .iter()
+                .flatten()
+                .all(|(t, _)| matches!(t, Cow::Borrowed(_)))
+        );
     }
 
     #[test]

@@ -21,7 +21,7 @@ mod traits;
 pub use error::{Error, Result, exit};
 pub use event::{
     AdmonitionKind, Align, BreakKind, Diagnostic, Event, Events, ImageSource, Marker, Metadata,
-    Severity, Span, Spanned, Tag, TagKind,
+    Severity, Span, Spanned, Tag, TagKind, TokenRole,
 };
 pub use format::{Confidence, Detection, FormatId, confidence};
 pub use line::{Color, Line, NamedColor, Segment, Style};

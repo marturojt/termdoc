@@ -7,24 +7,27 @@
 //! tokenizer duplicates a decade of `serde_json`'s work on escapes, surrogate pairs and
 //! number edge cases — but it is only defensible with a ceiling on it.
 //!
-//! **Measured end to end on 2026-08-11** (Apple silicon, release build, scalar-heavy input —
-//! the worst shape, since every small number is its own node):
+//! **Measured end to end** (Apple silicon, release build, `/usr/bin/time -l` peak footprint,
+//! scalar-heavy input — the worst shape, since every small number is its own node):
 //!
-//! | input | process own memory | ratio |
+//! | input | 2026-08-11, pretty-printed `String` | 2026-10-08, lazy token walk |
 //! |---|---|---|
-//! | 128 KB | 6.7 MB | ~54x |
-//! | 256 KB | 12.1 MB | ~48x |
-//! | 512 KB | 22.6 MB | ~45x |
+//! | 128 KB | 6.7 MB (~54x) | 3.1 MB (~24x) |
+//! | 256 KB | 12.1 MB (~48x) | 6.6 MB (~26x) |
+//! | 512 KB | 22.6 MB (~45x) | 9.5 MB (~19x) |
+//!
+//! The drop is the pretty-printed `String` and the single event carrying it, both gone: the
+//! value is now walked lazily and a few events are queued per step.
 //!
 //! **Measure the whole pipeline, not the parser.** `serde_json::from_slice` alone accounts for
-//! only ~12x; the rest is the pretty-printed `String` and the event carrying it. A ceiling
-//! derived from the parser in isolation came out four times too generous, and the error was
-//! invisible until the binary itself was put under `/usr/bin/time -l`.
+//! only ~12x; a ceiling derived from the parser in isolation came out four times too generous,
+//! and the error was invisible until the binary itself was put under `/usr/bin/time -l`.
 //!
 //! The process budget is 50 MB of anonymous memory (docs/DESIGN.md §8). [`MAX_MATERIALISED`]
-//! is therefore 512 KiB, which costs about 23 MB at the worst observed ratio and leaves the
-//! rest of the pipeline room. Half a megabyte of JSON is already some fifteen thousand
-//! pretty-printed lines — well past what anyone reads rather than greps.
+//! is 512 KiB, a figure set when the cost was ~45x. At today's ~19-26x it leaves roughly
+//! twice the headroom it was chosen for; raising it is a decision to take with a measurement,
+//! not a free win. Half a megabyte of JSON is already some fifteen thousand pretty-printed
+//! lines — well past what anyone reads rather than greps.
 //!
 //! Above the threshold the document is neither refused nor truncated: it is emitted verbatim,
 //! lazily, with a [`Diagnostic`] explaining why it is unformatted. The reader makes that call
@@ -39,22 +42,21 @@
 //! point, and it is exactly the shape a large minified JSON has. Splitting the line here would
 //! mean inventing content, so it is recorded rather than papered over.
 //!
-//! # Why the output carries no per-token styling
+//! # Styling
 //!
-//! Inside [`Tag::Preformatted`] the layout engine emits **one line per `Text` event** and
-//! takes the style from the enclosing block, so a key and its value cannot carry different
-//! styles without being different lines. Marking keys with an inline tag produced exactly
-//! that: every key on a line of its own. Distinguishing keys from scalars therefore needs
-//! either a data-role concept in the document model or segment-level styling inside
-//! preformatted blocks, and both are layout or model changes rather than reader changes.
-//!
-//! What this reader delivers instead is the thing that actually makes JSON readable in a
-//! terminal: structure. A minified document arrives as one 40 KB line and leaves as an
-//! indented tree.
+//! Keys, strings, numbers, booleans, `null` and punctuation are each wrapped in a
+//! [`Tag::Token`] with a [`TokenRole`]. The reader says what the text *is*; the theme decides
+//! how it looks. Several tokens share one line inside `Preformatted` because the layout
+//! accumulates text until a newline closes the line (docs/DESIGN.md §2.2). The verbatim path
+//! carries no tokens: it is not parsed, so it has no roles to report.
 
+use std::borrow::Cow;
+use std::collections::VecDeque;
+
+use serde_json::Value;
 use termdoc_core::{
     Diagnostic, DocumentReader, Event, Events, FormatId, Metadata, ReadContext, ReaderCaps, Result,
-    Source, Spanned, Tag, TagKind,
+    Source, Spanned, Tag, TagKind, TokenRole,
 };
 
 /// The largest input that gets parsed into a `Value`. See the module header for the
@@ -107,7 +109,7 @@ impl DocumentReader for JsonReader {
             None
         } else {
             match serde_json::from_slice::<serde_json::Value>(src.bytes()) {
-                Ok(value) => serde_json::to_string_pretty(&value).ok(),
+                Ok(value) => Some(value),
                 Err(e) => {
                     // Partial rendering beats total failure: say what is wrong on stderr,
                     // then show the bytes so it can be seen for what it is.
@@ -122,15 +124,21 @@ impl DocumentReader for JsonReader {
         events.push(Spanned::bare(Event::Start(Tag::Preformatted)));
 
         match formatted {
-            // The engine splits preformatted text on newlines itself, so the whole document
-            // is one event. That also keeps `serde_json`'s pretty printer as the single
-            // authority on indentation and escaping rather than reimplementing it here.
-            Some(text) => {
-                events.push(Spanned::bare(Event::Text(text.into())));
-                events.push(Spanned::bare(Event::End(TagKind::Preformatted)));
-                events.push(Spanned::bare(Event::End(TagKind::Document)));
-                Ok(Box::new(events.into_iter().map(Ok)))
-            }
+            // The value is walked lazily rather than rendered to a string first. Measured, the
+            // pretty-printed `String` was a large part of the ~45x cost, and a walk holds only
+            // the tree and a stack of open containers.
+            Some(value) => Ok(Box::new(
+                events
+                    .into_iter()
+                    .chain(PrettyEvents::new(value))
+                    .chain(std::iter::once(Spanned::bare(Event::End(
+                        TagKind::Preformatted,
+                    ))))
+                    .chain(std::iter::once(Spanned::bare(Event::End(
+                        TagKind::Document,
+                    ))))
+                    .map(Ok),
+            )),
             // The fallback must not materialise, or the size ceiling would be pointless: the
             // whole reason for refusing to parse a 500 MB document is not spending 500 MB on
             // it, and reading it into a `String` to hand over as one event spends it anyway.
@@ -151,6 +159,134 @@ impl DocumentReader for JsonReader {
             )),
         }
     }
+}
+
+/// One open container, with the children it has yet to emit.
+enum Frame {
+    Array(std::vec::IntoIter<Value>),
+    Object(serde_json::map::IntoIter),
+}
+
+/// Walks a `Value` and emits it the way `serde_json::to_string_pretty` would print it —
+/// two-space indent, `"key": value` — with every key, scalar and bracket wrapped in a
+/// [`Tag::Token`] so the theme can tell them apart.
+///
+/// Lazy: a handful of events are queued per step, so memory is the tree plus the stack.
+struct PrettyEvents<'a> {
+    root: Option<Value>,
+    stack: Vec<Frame>,
+    /// Whether the container on top of the stack has emitted an item yet.
+    first: Vec<bool>,
+    pending: VecDeque<Event<'a>>,
+}
+
+impl<'a> PrettyEvents<'a> {
+    fn new(value: Value) -> Self {
+        PrettyEvents {
+            root: Some(value),
+            stack: Vec::new(),
+            first: Vec::new(),
+            pending: VecDeque::new(),
+        }
+    }
+
+    fn token(&mut self, role: TokenRole, text: impl Into<Cow<'a, str>>) {
+        self.pending.push_back(Event::Start(Tag::Token { role }));
+        self.pending.push_back(Event::Text(text.into()));
+        self.pending.push_back(Event::End(TagKind::Token));
+    }
+
+    fn indent(&mut self, depth: usize) {
+        const SPACES: &str = "                                                                ";
+        let width = depth * 2;
+        if width <= SPACES.len() {
+            self.pending
+                .push_back(Event::Text(Cow::Borrowed(&SPACES[..width])));
+        } else {
+            self.pending
+                .push_back(Event::Text(Cow::Owned(" ".repeat(width))));
+        }
+    }
+
+    /// Emits a value that sits at the current depth. A container is opened and left on the
+    /// stack; a scalar is complete.
+    fn begin(&mut self, value: Value) {
+        match value {
+            Value::Null => self.token(TokenRole::Null, "null"),
+            Value::Bool(b) => self.token(TokenRole::Bool, if b { "true" } else { "false" }),
+            Value::Number(n) => self.token(TokenRole::Number, n.to_string()),
+            Value::String(s) => self.token(TokenRole::String, quote(&s)),
+            Value::Array(items) if items.is_empty() => self.token(TokenRole::Punctuation, "[]"),
+            Value::Object(map) if map.is_empty() => self.token(TokenRole::Punctuation, "{}"),
+            Value::Array(items) => {
+                self.token(TokenRole::Punctuation, "[");
+                self.stack.push(Frame::Array(items.into_iter()));
+                self.first.push(true);
+            }
+            Value::Object(map) => {
+                self.token(TokenRole::Punctuation, "{");
+                self.stack.push(Frame::Object(map.into_iter()));
+                self.first.push(true);
+            }
+        }
+    }
+
+    /// Queues the next few events. Returns `false` when the document is finished.
+    fn advance(&mut self) -> bool {
+        if let Some(value) = self.root.take() {
+            self.begin(value);
+            return true;
+        }
+        let depth = self.stack.len();
+        let Some(top) = self.stack.last_mut() else {
+            return false;
+        };
+        let (item, closer) = match top {
+            Frame::Array(it) => (it.next().map(|v| (None, v)), "]"),
+            Frame::Object(it) => (it.next().map(|(k, v)| (Some(k), v)), "}"),
+        };
+        match item {
+            Some((key, value)) => {
+                let first = std::mem::replace(self.first.last_mut().expect("paired"), false);
+                if !first {
+                    self.token(TokenRole::Punctuation, ",");
+                }
+                self.pending.push_back(Event::Text(Cow::Borrowed("\n")));
+                self.indent(depth);
+                if let Some(key) = key {
+                    self.token(TokenRole::Key, quote(&key));
+                    self.token(TokenRole::Punctuation, ": ");
+                }
+                self.begin(value);
+            }
+            None => {
+                self.stack.pop();
+                self.first.pop();
+                self.pending.push_back(Event::Text(Cow::Borrowed("\n")));
+                self.indent(depth - 1);
+                self.token(TokenRole::Punctuation, closer);
+            }
+        }
+        true
+    }
+}
+
+impl<'a> Iterator for PrettyEvents<'a> {
+    type Item = Spanned<Event<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pending.is_empty() {
+            if !self.advance() {
+                return None;
+            }
+        }
+        self.pending.pop_front().map(Spanned::bare)
+    }
+}
+
+/// A JSON string literal, escaped exactly as `serde_json` escapes it.
+fn quote(s: &str) -> String {
+    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{s}\""))
 }
 
 /// Walks the source line by line, borrowing each one.
@@ -187,12 +323,13 @@ impl<'a> Iterator for RawLines<'a> {
         }
         let rest = &self.bytes[self.pos..];
         let end = rest.iter().position(|b| *b == b'\n');
+        // The terminator stays on the line: it is what closes a line inside `Preformatted`,
+        // and the layout trims it.
         let (line, advance) = match end {
-            Some(i) => (&rest[..i], i + 1),
+            Some(i) => (&rest[..=i], i + 1),
             None => (rest, rest.len()),
         };
         self.pos += advance;
-        let line = line.strip_suffix(b"\r").unwrap_or(line);
         let (text, _) = self.src.decode_line(line);
         Some(Spanned::bare(Event::Text(text)))
     }

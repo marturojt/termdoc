@@ -6,7 +6,7 @@
 //! The defaults use **named** colors (`NamedColor`) rather than RGB, so the terminal
 //! applies its own palette and termdoc respects the user's theme instead of imposing one.
 
-use termdoc_core::{Color, NamedColor, Style};
+use termdoc_core::{Color, NamedColor, Style, TokenRole};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
@@ -32,6 +32,15 @@ pub struct Theme {
     pub diagnostic_error: Style,
     pub image_placeholder: Style,
     pub footnote_ref: Style,
+    pub token_key: Style,
+    pub token_string: Style,
+    pub token_number: Style,
+    pub token_bool: Style,
+    pub token_null: Style,
+    pub token_punctuation: Style,
+    pub token_comment: Style,
+    pub token_name: Style,
+    pub token_attribute: Style,
 }
 
 impl Default for Theme {
@@ -68,6 +77,15 @@ impl Default for Theme {
             diagnostic_error: Style::fg(c(BrightRed)).with_bold(),
             image_placeholder: Style::fg(c(BrightMagenta)).with_dim(),
             footnote_ref: Style::fg(c(BrightBlue)).with_dim(),
+            token_key: Style::fg(c(BrightCyan)),
+            token_string: Style::fg(c(Green)),
+            token_number: Style::fg(c(Yellow)),
+            token_bool: Style::fg(c(BrightMagenta)),
+            token_null: Style::fg(c(BrightBlack)),
+            token_punctuation: Style::fg(c(BrightBlack)),
+            token_comment: Style::fg(c(BrightBlack)).with_italic(),
+            token_name: Style::bold().with_fg(c(BrightBlue)),
+            token_attribute: Style::fg(c(Cyan)),
         }
     }
 }
@@ -98,6 +116,31 @@ impl Theme {
             diagnostic_error: Style::PLAIN,
             image_placeholder: Style::PLAIN,
             footnote_ref: Style::PLAIN,
+            token_key: Style::PLAIN,
+            token_string: Style::PLAIN,
+            token_number: Style::PLAIN,
+            token_bool: Style::PLAIN,
+            token_null: Style::PLAIN,
+            token_punctuation: Style::PLAIN,
+            token_comment: Style::PLAIN,
+            token_name: Style::PLAIN,
+            token_attribute: Style::PLAIN,
+        }
+    }
+
+    /// The style for a syntactic token. Exhaustive on purpose: adding a role without
+    /// deciding how it looks does not compile.
+    pub fn token_style(&self, role: TokenRole) -> Style {
+        match role {
+            TokenRole::Key => self.token_key,
+            TokenRole::String => self.token_string,
+            TokenRole::Number => self.token_number,
+            TokenRole::Bool => self.token_bool,
+            TokenRole::Null => self.token_null,
+            TokenRole::Punctuation => self.token_punctuation,
+            TokenRole::Comment => self.token_comment,
+            TokenRole::Name => self.token_name,
+            TokenRole::Attribute => self.token_attribute,
         }
     }
 

@@ -188,6 +188,33 @@ pub enum Tag<'a> {
         href: Cow<'a, str>,
         title: Option<Cow<'a, str>>,
     },
+    /// A span of text with a syntactic role: a JSON key, a number, a comment.
+    ///
+    /// The reader says *what* the text is and the theme decides how it looks, which is what
+    /// keeps readers from choosing colors. Valid inside `Preformatted` and `CodeBlock`, where
+    /// several of these share one line, and anywhere else inline.
+    Token {
+        role: TokenRole,
+    },
+}
+
+/// What a [`Tag::Token`] span is, in terms of the document's own syntax rather than a color.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TokenRole {
+    /// An object key, a mapping key, a TOML key.
+    Key,
+    String,
+    Number,
+    /// `true` / `false`.
+    Bool,
+    Null,
+    /// Braces, brackets, commas, colons: structure that carries no data.
+    Punctuation,
+    Comment,
+    /// A table header, an element name.
+    Name,
+    /// An XML attribute name.
+    Attribute,
 }
 
 /// `Tag`'s discriminant, so `End` does not have to carry the payload again.
@@ -221,6 +248,7 @@ pub enum TagKind {
     Sub,
     Super,
     Link,
+    Token,
 }
 
 impl Tag<'_> {
@@ -254,6 +282,7 @@ impl Tag<'_> {
             Tag::Sub => TagKind::Sub,
             Tag::Super => TagKind::Super,
             Tag::Link { .. } => TagKind::Link,
+            Tag::Token { .. } => TagKind::Token,
         }
     }
 }
@@ -272,6 +301,7 @@ impl TagKind {
                 | TagKind::Sub
                 | TagKind::Super
                 | TagKind::Link
+                | TagKind::Token
         )
     }
 }
@@ -430,6 +460,9 @@ mod tests {
                 href: "x".into(),
                 title: None,
             },
+            Tag::Token {
+                role: TokenRole::Key,
+            },
         ];
         for t in tags {
             let k = t.kind();
@@ -441,6 +474,7 @@ mod tests {
     fn inline_is_not_a_block() {
         assert!(!TagKind::Emphasis.is_block());
         assert!(!TagKind::Link.is_block());
+        assert!(!TagKind::Token.is_block());
         assert!(TagKind::Paragraph.is_block());
         assert!(TagKind::Table.is_block());
     }

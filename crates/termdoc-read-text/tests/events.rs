@@ -223,13 +223,14 @@ fn the_link_preserves_its_target() {
 
 #[test]
 fn plain_text_is_preformatted_with_one_line_per_event() {
+    // Each line keeps its terminator: in `Preformatted` a newline is what closes a line.
     assert_eq!(
         txt("one\ntwo\n"),
         "\
 Document
   Preformatted
-    Text(\"one\")
-    Text(\"two\")
+    Text(\"one\\n\")
+    Text(\"two\\n\")
   /Preformatted
 /Document
 "
@@ -243,7 +244,7 @@ fn plain_text_does_not_interpret_markers() {
     assert!(!dump.contains("Heading"), "{dump}");
     assert!(!dump.contains("Strong"), "{dump}");
     // Odd but necessary: `r#"..."#` would terminate at the `"#` in the content.
-    assert!(dump.contains(r##"Text("# not a heading")"##), "{dump}");
+    assert!(dump.contains(r##"Text("# not a heading\n")"##), "{dump}");
 }
 
 #[test]

@@ -23,4 +23,4 @@ pub use engine::{Layout, LayoutOptions, glyphs_for};
 pub use glyphs::{ASCII, Glyphs, UNICODE};
 pub use table::TableBuilder;
 pub use theme::Theme;
-pub use wrap::{TAB_WIDTH, WrapBuffer, display_width, hard_wrap};
+pub use wrap::{Part, TAB_WIDTH, WrapBuffer, display_width, hard_wrap, hard_wrap_parts};

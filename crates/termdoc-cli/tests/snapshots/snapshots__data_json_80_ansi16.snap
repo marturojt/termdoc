@@ -2,28 +2,28 @@
 source: crates/termdoc-cli/tests/snapshots.rs
 expression: output
 ---
-{
-  "formats": {
-    "detected": [
-      "yaml",
-      "toml",
-      "xml",
-      "csv"
-    ],
-    "rendered": [
-      "markdown",
-      "text",
-      "log",
-      "json"
-    ]
-  },
-  "name": "termdoc",
-  "pager": null,
-  "perf": {
-    "own_memory_mb": 1.4,
-    "startup_ms": 3.9,
-    "streaming": true
-  },
-  "unicode": "café — 日本語",
-  "version": "0.1.0"
-}
+<ESC>[0;90m{<ESC>[0m
+  <ESC>[0;96m"formats"<ESC>[0;90m: {<ESC>[0m
+    <ESC>[0;96m"detected"<ESC>[0;90m: [<ESC>[0m
+      <ESC>[0;32m"yaml"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"toml"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"xml"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"csv"<ESC>[0m
+    <ESC>[0;90m],<ESC>[0m
+    <ESC>[0;96m"rendered"<ESC>[0;90m: [<ESC>[0m
+      <ESC>[0;32m"markdown"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"text"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"log"<ESC>[0;90m,<ESC>[0m
+      <ESC>[0;32m"json"<ESC>[0m
+    <ESC>[0;90m]<ESC>[0m
+  <ESC>[0;90m},<ESC>[0m
+  <ESC>[0;96m"name"<ESC>[0;90m: <ESC>[0;32m"termdoc"<ESC>[0;90m,<ESC>[0m
+  <ESC>[0;96m"pager"<ESC>[0;90m: null,<ESC>[0m
+  <ESC>[0;96m"perf"<ESC>[0;90m: {<ESC>[0m
+    <ESC>[0;96m"own_memory_mb"<ESC>[0;90m: <ESC>[0;33m1.4<ESC>[0;90m,<ESC>[0m
+    <ESC>[0;96m"startup_ms"<ESC>[0;90m: <ESC>[0;33m3.9<ESC>[0;90m,<ESC>[0m
+    <ESC>[0;96m"streaming"<ESC>[0;90m: <ESC>[0;95mtrue<ESC>[0m
+  <ESC>[0;90m},<ESC>[0m
+  <ESC>[0;96m"unicode"<ESC>[0;90m: <ESC>[0;32m"café — 日本語"<ESC>[0;90m,<ESC>[0m
+  <ESC>[0;96m"version"<ESC>[0;90m: <ESC>[0;32m"0.1.0"<ESC>[0m
+<ESC>[0;90m}<ESC>[0m

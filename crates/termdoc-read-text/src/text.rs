@@ -121,15 +121,16 @@ impl<'a> Iterator for TextEvents<'a> {
 
                     let start = self.pos;
                     let rest = &self.bytes[start..];
+                    // The line keeps its terminator. Inside `Preformatted` a newline is what
+                    // closes a line, and the layout trims the `\r\n` or `\n` itself, so
+                    // Windows line endings need no handling here. A last line with no
+                    // terminator simply stays open until the block ends.
                     let (line_bytes, consumed) = match rest.iter().position(|b| *b == b'\n') {
-                        Some(nl) => (&rest[..nl], nl + 1),
+                        Some(nl) => (&rest[..=nl], nl + 1),
                         None => (rest, rest.len()),
                     };
                     self.pos += consumed;
                     self.line += 1;
-
-                    // Strip the CR from Windows line endings.
-                    let line_bytes = line_bytes.strip_suffix(b"\r").unwrap_or(line_bytes);
 
                     // Decoding per line, through the source: valid UTF-8 is borrowed, and only
                     // a line that needs transcoding is copied. That keeps the reader lazy while
@@ -221,20 +222,24 @@ mod tests {
     #[test]
     fn one_line_per_text_event() {
         let src = Source::from_bytes("t", "one\ntwo\nthree");
-        assert_eq!(texts(&src), vec!["one", "two", "three"]);
+        // The terminator rides along: it is what closes the line inside `Preformatted`. The
+        // last line has none, and stays open until the block ends.
+        assert_eq!(texts(&src), vec!["one\n", "two\n", "three"]);
     }
 
     #[test]
     fn the_trailing_newline_does_not_create_an_extra_line() {
         // `printf 'a\nb\n'` is two lines, not three.
         let src = Source::from_bytes("t", "a\nb\n");
-        assert_eq!(texts(&src), vec!["a", "b"]);
+        assert_eq!(texts(&src), vec!["a\n", "b\n"]);
     }
 
     #[test]
-    fn strips_windows_carriage_returns() {
+    fn leaves_windows_line_endings_for_the_layout_to_trim() {
+        // The layout drops `\r\n` as it closes the line; `windows_line_endings_leave_no_cr`
+        // in the CLI's integration tests pins the end-to-end behavior.
         let src = Source::from_bytes("t", "one\r\ntwo\r\n");
-        assert_eq!(texts(&src), vec!["one", "two"]);
+        assert_eq!(texts(&src), vec!["one\r\n", "two\r\n"]);
     }
 
     #[test]
@@ -280,7 +285,7 @@ mod tests {
         // though the right answer was known.
         let mut src = Source::from_bytes("t", b"Comit\xE9\nse\xF1or\n".to_vec());
         src.set_encoding("windows-1252").unwrap();
-        assert_eq!(texts(&src), vec!["Comité", "señor"]);
+        assert_eq!(texts(&src), vec!["Comité\n", "señor\n"]);
         assert!(
             !collect_events(&src)
                 .iter()

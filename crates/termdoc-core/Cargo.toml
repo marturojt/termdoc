@@ -1,6 +1,6 @@
 [package]
 name = "termdoc-core"
-description = "Document model, pipeline traits and input sources for termdoc"
+description = "Document model, pipeline traits, and file and stdin input for termdoc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

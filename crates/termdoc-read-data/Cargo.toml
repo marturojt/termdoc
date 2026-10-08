@@ -1,6 +1,6 @@
 [package]
 name = "termdoc-read-data"
-description = "Structured data readers for termdoc: JSON, YAML, TOML and XML"
+description = "Structured data readers for termdoc: JSON, YAML, TOML, XML and CSV"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 readme.workspace = true
 authors.workspace = true
-keywords = ["json", "yaml", "toml", "xml", "viewer"]
+keywords = ["json", "yaml", "toml", "xml", "csv"]
 categories = ["text-processing", "parsing"]
 
 # LAYERING INVARIANT: core only. A reader describes a document; it never decides how the

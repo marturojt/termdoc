@@ -609,7 +609,7 @@ planned in §15; it runs alongside the milestones rather than inside one.
 
 ## 12. Decisions to record as ADRs
 
-The ones with real tension, worth writing down in `docs/adr/`:
+**Written down in [`docs/adr/`](adr/README.md)** (0001-0010 are these ten; 0011-0014 record what M1 taught). The ones with real tension:
 
 1. **An event stream instead of an AST.** Memory and streaming outweigh random access; the tree is
    obtained through an adapter when needed.

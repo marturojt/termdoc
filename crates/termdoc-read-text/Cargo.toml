@@ -1,6 +1,6 @@
 [package]
 name = "termdoc-read-text"
-description = "Plain-text and Markdown readers for termdoc"
+description = "Plain-text, Markdown and log readers for termdoc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -724,7 +724,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "insta",
@@ -741,7 +741,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-backend"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "termdoc-core",
  "termdoc-term",
@@ -749,7 +749,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "encoding_rs",
  "memmap2",
@@ -758,7 +758,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-detect"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chardetng",
  "encoding_rs",
@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-layout"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proptest",
  "termdoc-core",
@@ -779,7 +779,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-read-code"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "syntect",
  "termdoc-core",
@@ -788,7 +788,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-read-data"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "quick-xml",
  "serde_json",
@@ -797,7 +797,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-read-text"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pulldown-cmark",
  "termdoc-core",
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "termdoc-term"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "terminal_size",
 ]

@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
@@ -31,14 +31,14 @@ categories = ["command-line-utilities", "text-processing"]
 
 [workspace.dependencies]
 # Internal
-termdoc-core = { path = "crates/termdoc-core", version = "0.1.0" }
-termdoc-term = { path = "crates/termdoc-term", version = "0.1.0" }
-termdoc-layout = { path = "crates/termdoc-layout", version = "0.1.0" }
-termdoc-backend = { path = "crates/termdoc-backend", version = "0.1.0" }
-termdoc-read-text = { path = "crates/termdoc-read-text", version = "0.1.0" }
-termdoc-read-data = { path = "crates/termdoc-read-data", version = "0.1.0" }
-termdoc-read-code = { path = "crates/termdoc-read-code", version = "0.1.0" }
-termdoc-detect = { path = "crates/termdoc-detect", version = "0.1.0" }
+termdoc-core = { path = "crates/termdoc-core", version = "0.2.0" }
+termdoc-term = { path = "crates/termdoc-term", version = "0.2.0" }
+termdoc-layout = { path = "crates/termdoc-layout", version = "0.2.0" }
+termdoc-backend = { path = "crates/termdoc-backend", version = "0.2.0" }
+termdoc-read-text = { path = "crates/termdoc-read-text", version = "0.2.0" }
+termdoc-read-data = { path = "crates/termdoc-read-data", version = "0.2.0" }
+termdoc-read-code = { path = "crates/termdoc-read-code", version = "0.2.0" }
+termdoc-detect = { path = "crates/termdoc-detect", version = "0.2.0" }
 
 # External — versions verified on crates.io 2026-08-10 (docs/DESIGN.md §9)
 clap = { version = "4.6", features = ["derive", "wrap_help"] }

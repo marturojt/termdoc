@@ -7,11 +7,11 @@
 //! | format | approach | why |
 //! |---|---|---|
 //! | JSON | materialise, with a size ceiling | `serde_json` builds a tree; the ceiling bounds it |
-//! | TOML | materialise, no apology | config files; streaming buys nothing |
+//! | TOML | line-by-line highlighter | a parse tree has nowhere to keep the comments; see `toml.rs` |
 //! | XML | stream | `quick-xml` is already a pull parser that borrows |
 //! | YAML | line-by-line highlighter | a parser's events drop the comments; see `yaml.rs` |
 //!
-//! JSON and YAML are implemented so far.
+//! JSON, YAML and TOML are implemented so far.
 //!
 //! # Layering
 //!
@@ -22,10 +22,13 @@
 //! No detectors are registered: naming a format belongs to `termdoc-detect`, so that detection
 //! order does not depend on which readers a build happens to contain.
 
+mod highlight;
 mod json;
+mod toml;
 mod yaml;
 
 pub use json::{JsonReader, MAX_MATERIALISED};
+pub use toml::TomlReader;
 pub use yaml::YamlReader;
 
 use std::sync::Arc;
@@ -35,6 +38,7 @@ use termdoc_core::Registry;
 pub fn register(registry: &mut Registry) {
     registry.register_reader(Arc::new(JsonReader::new()));
     registry.register_reader(Arc::new(YamlReader::new()));
+    registry.register_reader(Arc::new(TomlReader::new()));
 }
 
 #[cfg(test)]
@@ -54,6 +58,13 @@ mod tests {
         let mut r = Registry::new();
         register(&mut r);
         assert!(r.reader_for(FormatId::Yaml).is_some());
+    }
+
+    #[test]
+    fn register_makes_toml_resolvable() {
+        let mut r = Registry::new();
+        register(&mut r);
+        assert!(r.reader_for(FormatId::Toml).is_some());
     }
 
     #[test]

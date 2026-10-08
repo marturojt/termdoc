@@ -130,6 +130,9 @@ snapshot_matrix!(data_json, "data.json", [40usize, 80]);
 // Comments, anchors and a block scalar are in there on purpose: they are what a YAML parser's
 // events would have lost.
 snapshot_matrix!(data_yaml, "data.yaml", [40usize, 80]);
+// Table headers, a multi-line array and a multi-line string: the shapes that need state
+// carried from one line to the next.
+snapshot_matrix!(data_toml, "data.toml", [40usize, 80]);
 
 /// Degrading changes the appearance, never the content.
 ///

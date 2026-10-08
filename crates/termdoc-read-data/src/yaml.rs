@@ -29,14 +29,11 @@
 //! that spans lines is coloured line by line; a multi-line *plain* scalar is coloured as if each
 //! line were its own value.
 
-use std::borrow::Cow;
-use std::collections::VecDeque;
-use std::ops::Range;
-
 use termdoc_core::{
-    Diagnostic, DocumentReader, Event, Events, FormatId, Metadata, ReadContext, ReaderCaps, Result,
-    Source, Span, Spanned, Tag, TagKind, TokenRole,
+    DocumentReader, Events, FormatId, ReadContext, ReaderCaps, Result, Source, TokenRole,
 };
+
+use crate::highlight::{HighlightEvents, Painter, Piece, skip_spaces, trim_end};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct YamlReader;
@@ -62,7 +59,7 @@ impl DocumentReader for YamlReader {
     }
 
     fn read<'a>(&self, src: &'a Source, _ctx: &ReadContext) -> Result<Events<'a>> {
-        Ok(Box::new(YamlEvents::new(src)))
+        Ok(Box::new(HighlightEvents::new(src, FormatId::Yaml, lex)))
     }
 }
 
@@ -76,164 +73,7 @@ struct State {
     open_quote: Option<u8>,
 }
 
-/// A coloured run of one line, as a byte range of its body.
-type Piece = (Range<usize>, Option<TokenRole>);
-
-struct YamlEvents<'a> {
-    src: &'a Source,
-    bytes: &'a [u8],
-    pos: usize,
-    line: u32,
-    state: State,
-    pending: VecDeque<Spanned<Event<'a>>>,
-    warned_encoding: bool,
-    done: bool,
-}
-
-impl<'a> YamlEvents<'a> {
-    fn new(src: &'a Source) -> Self {
-        let mut pending = VecDeque::new();
-        pending.push_back(Spanned::bare(Event::Start(Tag::Document(Box::new(
-            Metadata {
-                source_format: Some(FormatId::Yaml),
-                ..Metadata::default()
-            },
-        )))));
-        pending.push_back(Spanned::bare(Event::Start(Tag::Preformatted)));
-        YamlEvents {
-            src,
-            bytes: src.bytes(),
-            pos: 0,
-            line: 0,
-            state: State::default(),
-            pending,
-            warned_encoding: false,
-            done: false,
-        }
-    }
-
-    /// Reads one line and queues its events.
-    fn fill(&mut self) {
-        if self.pos >= self.bytes.len() {
-            self.pending
-                .push_back(Spanned::bare(Event::End(TagKind::Preformatted)));
-            self.pending
-                .push_back(Spanned::bare(Event::End(TagKind::Document)));
-            self.done = true;
-            return;
-        }
-
-        let start = self.pos;
-        let rest = &self.bytes[start..];
-        // The terminator stays on the line: inside `Preformatted` it is what closes it.
-        let (raw, advance) = match rest.iter().position(|b| *b == b'\n') {
-            Some(nl) => (&rest[..=nl], nl + 1),
-            None => (rest, rest.len()),
-        };
-        self.pos += advance;
-        self.line += 1;
-        let span = Span::at_line(start as u64, self.pos as u64, self.line);
-
-        let (line, had_errors) = self.src.decode_line(raw);
-        if had_errors && !self.warned_encoding {
-            // Once: a warning per line of a large file is worse than the problem.
-            self.warned_encoding = true;
-            self.pending.push_back(Spanned::new(
-                Event::Diagnostic(Diagnostic::warning(format!(
-                    "line {} is not valid {}; shown with replacements",
-                    self.line,
-                    self.src.encoding_name()
-                ))),
-                span,
-            ));
-        }
-
-        let body_len = line.trim_end_matches(['\n', '\r']).len();
-        let pieces = lex(&line[..body_len], &mut self.state);
-        for (range, role) in pieces {
-            let text = slice(&line, range.start, range.end);
-            match role {
-                Some(role) => {
-                    self.pending
-                        .push_back(Spanned::new(Event::Start(Tag::Token { role }), span));
-                    self.pending
-                        .push_back(Spanned::new(Event::Text(text), span));
-                    self.pending
-                        .push_back(Spanned::new(Event::End(TagKind::Token), span));
-                }
-                None => self
-                    .pending
-                    .push_back(Spanned::new(Event::Text(text), span)),
-            }
-        }
-        if body_len < line.len() {
-            self.pending.push_back(Spanned::new(
-                Event::Text(slice(&line, body_len, line.len())),
-                span,
-            ));
-        }
-    }
-}
-
-impl<'a> Iterator for YamlEvents<'a> {
-    type Item = Result<Spanned<Event<'a>>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(event) = self.pending.pop_front() {
-                return Some(Ok(event));
-            }
-            if self.done {
-                return None;
-            }
-            self.fill();
-        }
-    }
-}
-
-/// A sub-slice that stays borrowed when the whole is borrowed.
-fn slice<'a>(text: &Cow<'a, str>, from: usize, to: usize) -> Cow<'a, str> {
-    match text {
-        Cow::Borrowed(s) => Cow::Borrowed(&s[from..to]),
-        Cow::Owned(s) => Cow::Owned(s[from..to].to_string()),
-    }
-}
-
 // ---------------------------------------------------------------------------- lexer
-
-/// Accumulates coloured runs and fills the gaps between them with uncoloured ones, so the
-/// pieces always cover the whole line.
-struct Painter {
-    pieces: Vec<Piece>,
-    at: usize,
-}
-
-impl Painter {
-    fn new() -> Self {
-        Painter {
-            pieces: Vec::new(),
-            at: 0,
-        }
-    }
-
-    fn tok(&mut self, from: usize, to: usize, role: TokenRole) {
-        if from >= to || from < self.at {
-            return;
-        }
-        if from > self.at {
-            self.pieces.push((self.at..from, None));
-        }
-        self.pieces.push((from..to, Some(role)));
-        self.at = to;
-    }
-
-    fn finish(mut self, len: usize) -> Vec<Piece> {
-        if self.at < len {
-            self.pieces.push((self.at..len, None));
-        }
-        self.pieces
-    }
-}
 
 /// Colours one line (without its terminator). The result covers `0..line.len()` exactly.
 fn lex(line: &str, st: &mut State) -> Vec<Piece> {
@@ -532,21 +372,6 @@ fn closing_quote(b: &[u8], from: usize, q: u8) -> Option<usize> {
     None
 }
 
-fn skip_spaces(b: &[u8], mut i: usize) -> usize {
-    while i < b.len() && (b[i] == b' ' || b[i] == b'\t') {
-        i += 1;
-    }
-    i
-}
-
-/// `end` moved back over trailing spaces, but never before `from`.
-fn trim_end(b: &[u8], from: usize, mut end: usize) -> usize {
-    while end > from && (b[end - 1] == b' ' || b[end - 1] == b'\t') {
-        end -= 1;
-    }
-    end
-}
-
 /// The end of an anchor, alias or tag: up to a space or a flow indicator.
 fn word_end(b: &[u8], from: usize) -> usize {
     let mut k = from + 1;
@@ -595,6 +420,8 @@ fn is_number(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::borrow::Cow;
+    use termdoc_core::{Event, Tag, TagKind};
 
     /// A line as `{role|text}` runs, so a test reads like the colouring it checks.
     fn show(line: &str, st: &mut State) -> String {

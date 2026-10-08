@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  ███████░░░░░░░░░░░░░  ~35%       detection, encoding, JSON, YAML landed; readers pending
+M1  █████████░░░░░░░░░░░  ~45%       detection, encoding, JSON, YAML, TOML landed; readers pending
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,500 lines across 8 crates |
-| Tests | **293**, all green |
+| Tests | **309**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -46,8 +46,7 @@ termdoc --encoding latin1 x.txt
 termdoc --ascii --width 40 t.md
 ```
 
-Readers exist for **Markdown, plain text and logs**. Detection recognizes far more (JSON, YAML,
-TOML, XML, HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+Readers exist for **Markdown, plain text, logs, JSON, YAML and TOML**. Detection recognizes far more (XML, HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
 without its own reader falls back to plain text with a warning on stderr. That fallback is
 deliberate, not an oversight — see §4.
 
@@ -58,7 +57,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 293 passing
+cargo test --workspace                                   # expect 309 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -75,10 +74,10 @@ suite has no known flakiness.
 
 The remaining M1 work, in the order I would keep.
 
-### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, TOML, XML  ← JSON and YAML landed; TOML next
+### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, ~~TOML~~, XML  ← XML is the last one
 
 `crates/termdoc-read-data/` **exists** and carries the JSON reader. Remaining dependencies, already
-vetted: `toml` 1.1, `quick-xml` 0.41. (`yaml-rust2` was vetted too and ended up unused.)
+vetted: `quick-xml` 0.41. (`yaml-rust2` and `toml` were vetted too and ended up unused.)
 
 **Read `json.rs`'s module header before adding the next one.** It records what the measurement
 caught: that a ceiling derived from the parser alone is four times too generous because the
@@ -190,8 +189,8 @@ These cost real debugging time. They are all fixed; this list exists so they are
 
 1. **Streaming versus simplicity for the data readers.** Resolved in shape, not yet in code: it is
    **four decisions, not one**. XML streams because `quick-xml` is already a pull parser that
-   borrows; TOML materializes without apology because config files are small; YAML is
-   highlighted line by line (no parser, to keep the comments); and **only JSON is a real dilemma**. For JSON the plan is
+   borrows; YAML and TOML are
+   highlighted line by line (no parser, to keep the comments; they share `highlight.rs`); and **only JSON is a real dilemma**. For JSON the plan is
    `serde_json` plus a size guard — under the threshold it materializes and pretty-prints, over it
    the reader emits `Tag::Preformatted` and an `Event::Diagnostic` saying why. The guard lives in
    the reader, not in `run.rs`, because `pick_reader` decides by *format* and has no business

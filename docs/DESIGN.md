@@ -531,7 +531,7 @@ Verified on crates.io on 2026-08-10 (stable version and 90-day downloads).
 | XML | `quick-xml` | 0.41 | Streaming; the basis of DOCX/ODT/EPUB/XLSX |
 | ZIP | `zip` | 8.6 | |
 | HTML | `lol_html` or `html5ever` | 3.0 / 0.39 | `lol_html` streams; `html5ever` is more faithful |
-| Data | `serde_json`, `toml` | 1.0, 1.1 | |
+| Data | `serde_json` (`toml` was vetted, unused: see ADR 7) | 1.0 | |
 | YAML | *(none — see the note below)* | — | A line-by-line highlighter; `yaml-rust2` was the plan |
 | CSV | `csv` | — | |
 | Spreadsheets | `calamine` | 0.36 | XLSX/ODS, for M5 |
@@ -611,6 +611,8 @@ The ones with real tension, worth writing down in `docs/adr/`:
    comments are most of what a viewer is for. The reader highlights the text instead of parsing
    it (`termdoc-read-data/src/yaml.rs`): byte-for-byte output, truly streaming, no dependency.
    It is a lexer, not a validator; `yaml-rust2` remains the answer if validation is ever wanted.
+   **TOML takes the same road** for the same reason (`termdoc-read-data/src/toml.rs`); the two
+   share their line-by-line plumbing in `highlight.rs`.
 8. **`SIGPIPE` reset to `SIG_DFL`.**
 9. **`Renderer` renamed to `DocumentReader`;** "renderer" is reserved for layout+backend.
 10. **Grapheme integrity outranks the width limit.** The two collide for a ZWJ emoji in a

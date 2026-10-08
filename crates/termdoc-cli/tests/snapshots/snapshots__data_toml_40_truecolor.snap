@@ -1,0 +1,39 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;3;90m# termdoc's own manifest, as a TOML docu<ESC>[0m
+<ESC>[0;3;90mment<ESC>[0m
+<ESC>[0;96mtitle<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"termdoc"<ESC>[0m            <ESC>[0;3;90m# the binar<ESC>[0m
+<ESC>[0;3;90my<ESC>[0m
+<ESC>[0;96mversion<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"0.1.0"<ESC>[0m
+<ESC>[0;96mstreaming<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;95mtrue<ESC>[0m
+<ESC>[0;96mreleased<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;33m2026-08-11<ESC>[0m
+<ESC>[0;96mratio<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;33m1.4e1<ESC>[0m
+<ESC>[0;96mmask<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;33m0xFF_00<ESC>[0m
+
+<ESC>[0;90m[<ESC>[0;1;94mpackage<ESC>[0;90m]<ESC>[0m
+<ESC>[0;96mname<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"termdoc"<ESC>[0m
+<ESC>[0;96mauthors<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;90m[<ESC>[0;32m"Arturo"<ESC>[0;90m,<ESC>[0m <ESC>[0;32m"Codex"<ESC>[0;90m]<ESC>[0m
+<ESC>[0;96mmetadata.perf<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;90m{<ESC>[0m <ESC>[0;96mstartup_ms<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;33m3.9<ESC>[0;90m,<ESC>[0m <ESC>[0;96mmemo<ESC>[0m
+<ESC>[0;96mry_mb<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;33m1.4<ESC>[0m <ESC>[0;90m}<ESC>[0m
+
+<ESC>[0;90m[[<ESC>[0;1;94mbin<ESC>[0;90m]]<ESC>[0m
+<ESC>[0;96mname<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"termdoc"<ESC>[0m
+<ESC>[0;96mpath<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"src/main.rs"<ESC>[0m
+
+<ESC>[0;90m[[<ESC>[0;1;94mbin<ESC>[0;90m]]<ESC>[0m
+<ESC>[0;96mname<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"td"<ESC>[0m
+<ESC>[0;96mfeatures<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;90m[<ESC>[0m
+  <ESC>[0;32m"color"<ESC>[0;90m,<ESC>[0m   <ESC>[0;3;90m# always on<ESC>[0m
+  <ESC>[0;32m"unicode"<ESC>[0;90m,<ESC>[0m
+  <ESC>[0;32m"graphics"<ESC>[0;90m,<ESC>[0m
+<ESC>[0;90m]<ESC>[0m
+
+<ESC>[0;90m[<ESC>[0;1;94mstrings<ESC>[0;90m]<ESC>[0m
+<ESC>[0;96mbasic<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"tab\there"<ESC>[0m
+<ESC>[0;96mliteral<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m'C:\Users\termdoc'<ESC>[0m
+<ESC>[0;96m"quoted key"<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"café — 日本語"<ESC>[0m
+<ESC>[0;96mlong<ESC>[0m <ESC>[0;90m=<ESC>[0m <ESC>[0;32m"""<ESC>[0m
+<ESC>[0;32mKeys like a = 1 and # hashes<ESC>[0m
+<ESC>[0;32mare only text in here."""<ESC>[0m

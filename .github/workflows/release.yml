@@ -1,6 +1,6 @@
 name: Release
 
-# Tag-driven: pushing `v0.1.0` builds the binaries and drafts the release.
+# Tag-driven: pushing a `v*` tag builds the binaries and drafts the release.
 # The draft is deliberate — the artifacts get looked at before anyone can
 # download them, and a release, unlike a tag, is awkward to take back.
 on:
@@ -134,7 +134,17 @@ jobs:
           ./termdoc sample.md
           # The invariant that matters most: dying on SIGPIPE like cat, not panicking.
           ./termdoc sample.md | head -1
-          test "$(./termdoc --formats | tr '\n' ' ')" = "text log markdown "
+          # Every reader this release promises must be in the binary. Listed by name rather than
+          # compared whole: the exact list changes every milestone, and a check that has to be
+          # edited each time is a check that was once left stale (it asserted three formats long
+          # after there were nine, and blocked the 0.2.0 release).
+          formats=" $(./termdoc --formats | tr '\n' ' ')"
+          for f in text log markdown json yaml toml xml csv code; do
+            case "$formats" in
+              *" $f "*) ;;
+              *) echo "missing reader: $f (have:$formats)"; exit 1 ;;
+            esac
+          done
 
   # ── Publish GitHub release (draft) ───────────────────────────────────────────
   release:

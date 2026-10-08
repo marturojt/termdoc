@@ -13,7 +13,7 @@ It is not an editor, not a converter, and not an IDE.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
   already paid for. **Read it first if you are picking this up mid-stream.**
 
-Status: **M0 complete**, **M1 in progress** — detection, encoding and the JSON reader landed; YAML,
+Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON and YAML readers landed;
 TOML, XML, CSV, source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
 
 Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
@@ -28,7 +28,7 @@ Code, comments, test names and user-facing messages are all in **English**.
 ## Commands
 
 ```bash
-cargo test --workspace                          # 271 tests
+cargo test --workspace                          # 293 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc
@@ -196,6 +196,10 @@ the terminal width or a color inside a reader, the answer belongs in the layout 
   borrows the source. The borrow checker enforces an ordering a comment would only ask for.
 - `encoding_rs::decode` does BOM sniffing and **can override the encoding you asked for** — `FF FE`
   is a UTF-16LE BOM. Use `decode_without_bom_handling`; BOM handling belongs to `termdoc-detect`.
+- Inside `Preformatted`/`CodeBlock`, **text accumulates until a newline closes the line**. A reader
+  must keep the `\n` on every line it emits (`"one\n"`, still a borrowed slice) and may split a line
+  into `Tag::Token` runs for colour. Emitting `Text("one")` with no terminator merges it into the
+  next line. The layout trims `\n` and `\r\n` itself (DESIGN §2.2).
 - The layout **does not** merge adjacent segments of the same style: that would require
   concatenating strings and would lose the `Cow::Borrowed`. Avoiding redundant SGR is the backend's
   job — it tracks the current style as state.

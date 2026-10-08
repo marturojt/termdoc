@@ -1,0 +1,35 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+# termdoc's own configuration, as a YAML document
+%YAML 1.2
+---
+name: termdoc        # the binary
+version: "0.1.0"
+streaming: true
+pager: ~
+perf:
+  startup_ms: 3.9
+  own_memory_mb: 1.4
+
+defaults: &defaults
+  color: auto
+  width: 80
+
+profiles:
+  - name: ci
+    <<: *defaults
+    flags: [--strict, --color, never]
+  - name: demo
+    options: {width: 60, ascii: false}
+    note: 'it''s "quoted"'
+
+script: |
+  cargo build --release
+  echo done: ok   # not a comment, a string
+summary: >-
+  A folded block
+  that keeps its words.
+unicode: café — 日本語
+...

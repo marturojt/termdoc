@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  █████░░░░░░░░░░░░░░░  ~25%       detection + encoding landed; readers pending
+M1  ███████░░░░░░░░░░░░░  ~35%       detection, encoding, JSON, YAML landed; readers pending
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,500 lines across 8 crates |
-| Tests | **271**, all green |
+| Tests | **293**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -58,7 +58,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 271 passing
+cargo test --workspace                                   # expect 293 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -75,10 +75,10 @@ suite has no known flakiness.
 
 The remaining M1 work, in the order I would keep.
 
-### M1-1. Structured data readers — ~~JSON~~, YAML, TOML, XML  ← JSON landed; YAML next
+### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, TOML, XML  ← JSON and YAML landed; TOML next
 
 `crates/termdoc-read-data/` **exists** and carries the JSON reader. Remaining dependencies, already
-vetted: `yaml-rust2` 0.11, `toml` 1.1, `quick-xml` 0.41.
+vetted: `toml` 1.1, `quick-xml` 0.41. (`yaml-rust2` was vetted too and ended up unused.)
 
 **Read `json.rs`'s module header before adding the next one.** It records what the measurement
 caught: that a ceiling derived from the parser alone is four times too generous because the
@@ -100,9 +100,10 @@ Points worth deciding deliberately rather than by default:
   opposite, and §6.1 records the per-format answer. Do not silently claim streaming in
   `ReaderCaps`: nothing consumes that field today, so an aspirational `true` rots into a lie with no
   test to catch it.
-- **YAML with `yaml-rust2`** is a low-level event parser, which fits the event model well. Do not
-  reach for a `serde` DOM out of habit — and read the warning in §9 of DESIGN.md before touching any
-  YAML crate.
+- **YAML landed (2026-10-08) without a parser.** `yaml.rs` highlights the text line by line
+  instead, because a parser's events drop the comments (DESIGN ADR 7, and the module header). It
+  genuinely streams, and `ReaderCaps.streaming` is `true` there. If you ever want YAML
+  *validation*, `yaml-rust2` is the answer, behind a size ceiling like JSON's.
 
 ### M1-2. CSV as a table
 
@@ -189,8 +190,8 @@ These cost real debugging time. They are all fixed; this list exists so they are
 
 1. **Streaming versus simplicity for the data readers.** Resolved in shape, not yet in code: it is
    **four decisions, not one**. XML streams because `quick-xml` is already a pull parser that
-   borrows; TOML materializes without apology because config files are small; YAML uses
-   `yaml-rust2`'s event parser; and **only JSON is a real dilemma**. For JSON the plan is
+   borrows; TOML materializes without apology because config files are small; YAML is
+   highlighted line by line (no parser, to keep the comments); and **only JSON is a real dilemma**. For JSON the plan is
    `serde_json` plus a size guard — under the threshold it materializes and pretty-prints, over it
    the reader emits `Tag::Preformatted` and an `Event::Diagnostic` saying why. The guard lives in
    the reader, not in `run.rs`, because `pick_reader` decides by *format* and has no business

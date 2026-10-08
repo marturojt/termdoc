@@ -532,7 +532,7 @@ Verified on crates.io on 2026-08-10 (stable version and 90-day downloads).
 | ZIP | `zip` | 8.6 | |
 | HTML | `lol_html` or `html5ever` | 3.0 / 0.39 | `lol_html` streams; `html5ever` is more faithful |
 | Data | `serde_json`, `toml` | 1.0, 1.1 | |
-| YAML | **`yaml-rust2`** | 0.11 | See the warning below |
+| YAML | *(none — see the note below)* | — | A line-by-line highlighter; `yaml-rust2` was the plan |
 | CSV | `csv` | — | |
 | Spreadsheets | `calamine` | 0.36 | XLSX/ODS, for M5 |
 | PDF | `pdf_oxide` / `pdf-extract` | 0.3 / 0.12 | Swappable engine, see below |
@@ -606,7 +606,11 @@ The ones with real tension, worth writing down in `docs/adr/`:
 5. **Subprocesses over `dlopen`:** serialization is paid for in exchange for fault isolation and a
    stable ABI.
 6. **A swappable PDF engine behind a trait**; the ecosystem has no clear winner yet.
-7. **YAML: neither `serde_yaml` nor `serde_yml`** (both dead) → `yaml-rust2`.
+7. **YAML: neither `serde_yaml` nor `serde_yml`** (both dead), and in the end not `yaml-rust2`
+   either. Any parser's events drop the comments and normalise the rest, and a config file's
+   comments are most of what a viewer is for. The reader highlights the text instead of parsing
+   it (`termdoc-read-data/src/yaml.rs`): byte-for-byte output, truly streaming, no dependency.
+   It is a lexer, not a validator; `yaml-rust2` remains the answer if validation is ever wanted.
 8. **`SIGPIPE` reset to `SIG_DFL`.**
 9. **`Renderer` renamed to `DocumentReader`;** "renderer" is reserved for layout+backend.
 10. **Grapheme integrity outranks the width limit.** The two collide for a ZWJ emoji in a

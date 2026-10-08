@@ -9,9 +9,9 @@
 //! | JSON | materialise, with a size ceiling | `serde_json` builds a tree; the ceiling bounds it |
 //! | TOML | materialise, no apology | config files; streaming buys nothing |
 //! | XML | stream | `quick-xml` is already a pull parser that borrows |
-//! | YAML | event parser | `yaml-rust2` is already event-shaped |
+//! | YAML | line-by-line highlighter | a parser's events drop the comments; see `yaml.rs` |
 //!
-//! Only JSON is implemented so far.
+//! JSON and YAML are implemented so far.
 //!
 //! # Layering
 //!
@@ -23,8 +23,10 @@
 //! order does not depend on which readers a build happens to contain.
 
 mod json;
+mod yaml;
 
 pub use json::{JsonReader, MAX_MATERIALISED};
+pub use yaml::YamlReader;
 
 use std::sync::Arc;
 use termdoc_core::Registry;
@@ -32,6 +34,7 @@ use termdoc_core::Registry;
 /// Registers every reader in this crate.
 pub fn register(registry: &mut Registry) {
     registry.register_reader(Arc::new(JsonReader::new()));
+    registry.register_reader(Arc::new(YamlReader::new()));
 }
 
 #[cfg(test)]
@@ -44,6 +47,13 @@ mod tests {
         let mut r = Registry::new();
         register(&mut r);
         assert!(r.reader_for(FormatId::Json).is_some());
+    }
+
+    #[test]
+    fn register_makes_yaml_resolvable() {
+        let mut r = Registry::new();
+        register(&mut r);
+        assert!(r.reader_for(FormatId::Yaml).is_some());
     }
 
     #[test]

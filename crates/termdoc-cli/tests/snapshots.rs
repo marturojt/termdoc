@@ -127,6 +127,9 @@ snapshot_matrix!(plain_text, "plain.txt", [40usize]);
 // Minified on purpose: what the JSON reader buys is structure, and a snapshot of
 // already-indented input would not show it.
 snapshot_matrix!(data_json, "data.json", [40usize, 80]);
+// Comments, anchors and a block scalar are in there on purpose: they are what a YAML parser's
+// events would have lost.
+snapshot_matrix!(data_yaml, "data.yaml", [40usize, 80]);
 
 /// Degrading changes the appearance, never the content.
 ///

@@ -1,0 +1,37 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;3;90m# termdoc's own configuration, as a YAML<ESC>[0m
+<ESC>[0;3;90m document<ESC>[0m
+<ESC>[0;36m%YAML 1.2<ESC>[0m
+<ESC>[0;90m---<ESC>[0m
+<ESC>[0;96mname<ESC>[0;90m:<ESC>[0m <ESC>[0;32mtermdoc<ESC>[0m        <ESC>[0;3;90m# the binary<ESC>[0m
+<ESC>[0;96mversion<ESC>[0;90m:<ESC>[0m <ESC>[0;32m"0.1.0"<ESC>[0m
+<ESC>[0;96mstreaming<ESC>[0;90m:<ESC>[0m <ESC>[0;95mtrue<ESC>[0m
+<ESC>[0;96mpager<ESC>[0;90m:<ESC>[0m <ESC>[0;90m~<ESC>[0m
+<ESC>[0;96mperf<ESC>[0;90m:<ESC>[0m
+  <ESC>[0;96mstartup_ms<ESC>[0;90m:<ESC>[0m <ESC>[0;33m3.9<ESC>[0m
+  <ESC>[0;96mown_memory_mb<ESC>[0;90m:<ESC>[0m <ESC>[0;33m1.4<ESC>[0m
+
+<ESC>[0;96mdefaults<ESC>[0;90m:<ESC>[0m <ESC>[0;36m&defaults<ESC>[0m
+  <ESC>[0;96mcolor<ESC>[0;90m:<ESC>[0m <ESC>[0;32mauto<ESC>[0m
+  <ESC>[0;96mwidth<ESC>[0;90m:<ESC>[0m <ESC>[0;33m80<ESC>[0m
+
+<ESC>[0;96mprofiles<ESC>[0;90m:<ESC>[0m
+  <ESC>[0;90m-<ESC>[0m <ESC>[0;96mname<ESC>[0;90m:<ESC>[0m <ESC>[0;32mci<ESC>[0m
+    <ESC>[0;96m<<<ESC>[0;90m:<ESC>[0m <ESC>[0;1;94m*defaults<ESC>[0m
+    <ESC>[0;96mflags<ESC>[0;90m:<ESC>[0m <ESC>[0;90m[<ESC>[0;32m--strict<ESC>[0;90m,<ESC>[0m <ESC>[0;32m--color<ESC>[0;90m,<ESC>[0m <ESC>[0;32mnever<ESC>[0;90m]<ESC>[0m
+  <ESC>[0;90m-<ESC>[0m <ESC>[0;96mname<ESC>[0;90m:<ESC>[0m <ESC>[0;32mdemo<ESC>[0m
+    <ESC>[0;96moptions<ESC>[0;90m:<ESC>[0m <ESC>[0;90m{<ESC>[0;96mwidth<ESC>[0;90m:<ESC>[0m <ESC>[0;33m60<ESC>[0;90m,<ESC>[0m <ESC>[0;96mascii<ESC>[0;90m:<ESC>[0m <ESC>[0;95mfalse<ESC>[0;90m}<ESC>[0m
+    <ESC>[0;96mnote<ESC>[0;90m:<ESC>[0m <ESC>[0;32m'it''s "quoted"'<ESC>[0m
+
+<ESC>[0;96mscript<ESC>[0;90m:<ESC>[0m <ESC>[0;90m|<ESC>[0m
+  <ESC>[0;32mcargo build --release<ESC>[0m
+  <ESC>[0;32mecho done: ok   # not a comment, a str<ESC>[0m
+<ESC>[0;32ming<ESC>[0m
+<ESC>[0;96msummary<ESC>[0;90m:<ESC>[0m <ESC>[0;90m>-<ESC>[0m
+  <ESC>[0;32mA folded block<ESC>[0m
+  <ESC>[0;32mthat keeps its words.<ESC>[0m
+<ESC>[0;96municode<ESC>[0;90m:<ESC>[0m <ESC>[0;32mcafé — 日本語<ESC>[0m
+<ESC>[0;90m...<ESC>[0m

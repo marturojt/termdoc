@@ -9,6 +9,40 @@ pub enum When {
     Never,
 }
 
+/// Whether the first record of a CSV is a header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum CsvHeader {
+    /// A first record made only of numbers is data; anything else is a header.
+    Auto,
+    Yes,
+    No,
+}
+
+/// Parses `--delimiter`: a single ASCII character, or a name (`comma`, `semicolon`, `tab`,
+/// `pipe`, `space`), or `\t`.
+fn parse_delimiter(value: &str) -> Result<u8, String> {
+    let byte = match value.to_ascii_lowercase().as_str() {
+        "comma" => b',',
+        "semicolon" => b';',
+        "tab" | "\\t" => b'\t',
+        "pipe" => b'|',
+        "space" => b' ',
+        other => match other.as_bytes() {
+            [c] if c.is_ascii() => *c,
+            _ => {
+                return Err(format!(
+                    "'{value}' is not a delimiter; use one ASCII character or one of comma, \
+                     semicolon, tab, pipe, space"
+                ));
+            }
+        },
+    };
+    if matches!(byte, b'"' | b'\n' | b'\r') {
+        return Err("a quote or a line break cannot be a delimiter".into());
+    }
+    Ok(byte)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum BackendChoice {
     /// Chooses between ANSI and plain text based on the terminal.
@@ -55,6 +89,21 @@ pub struct Cli {
     /// Override encoding detection (utf-8, latin1, windows-1252, shift_jis, ...).
     #[arg(long, value_name = "ENC")]
     pub encoding: Option<String>,
+
+    /// Field delimiter of CSV-like input, instead of detecting it (a character, or comma,
+    /// semicolon, tab, pipe, space).
+    #[arg(long, value_name = "CHAR", value_parser = parse_delimiter)]
+    pub delimiter: Option<u8>,
+
+    /// Whether the first CSV record is a header. `auto` treats a first record made only of
+    /// numbers as data.
+    #[arg(
+        long = "csv-header",
+        value_enum,
+        default_value = "auto",
+        value_name = "WHEN"
+    )]
+    pub csv_header: CsvHeader,
 
     /// Use ASCII only: no box-drawing and no typographic bullets.
     #[arg(long, action = ArgAction::SetTrue)]
@@ -120,6 +169,45 @@ mod tests {
         let cli = Cli::parse_from(["termdoc", "a.md"]);
         assert!(!cli.reads_stdin());
         assert_eq!(cli.files, vec!["a.md"]);
+    }
+
+    #[test]
+    fn the_delimiter_flag_takes_names_and_characters() {
+        for (arg, byte) in [
+            ("tab", b'\t'),
+            ("TAB", b'\t'),
+            ("\\t", b'\t'),
+            (";", b';'),
+            ("semicolon", b';'),
+            ("pipe", b'|'),
+            ("space", b' '),
+        ] {
+            let cli = Cli::parse_from(["termdoc", "--delimiter", arg, "a.csv"]);
+            assert_eq!(cli.delimiter, Some(byte), "{arg}");
+        }
+        assert_eq!(Cli::parse_from(["termdoc", "a.csv"]).delimiter, None);
+    }
+
+    #[test]
+    fn a_nonsense_delimiter_is_a_usage_error() {
+        for bad in ["ab", "é", "\"", ""] {
+            assert!(
+                Cli::try_parse_from(["termdoc", "--delimiter", bad, "a.csv"]).is_err(),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_csv_header_flag_does_not_collide_with_no_header() {
+        // `--no-header` hides filename banners and has nothing to do with CSV.
+        let cli = Cli::parse_from(["termdoc", "--no-header", "--csv-header", "no", "a.csv"]);
+        assert!(cli.no_header);
+        assert_eq!(cli.csv_header, CsvHeader::No);
+        assert_eq!(
+            Cli::parse_from(["termdoc", "a.csv"]).csv_header,
+            CsvHeader::Auto
+        );
     }
 
     #[test]

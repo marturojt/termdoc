@@ -49,6 +49,7 @@ termdoc config.yaml               # comments kept, keys and values coloured
 termdoc Cargo.toml                # same for TOML: tables, arrays, multi-line strings
 termdoc feed.xml                  # tags, attributes, comments and CDATA told apart
 termdoc data.csv                  # a table: aligned, wrapped, numbers right-aligned
+termdoc --delimiter ';' data.csv  # when the delimiter cannot be guessed
 termdoc --explain odd.dat         # why it chose that format, then exit
 termdoc --formats                 # what this build can actually read
 ```

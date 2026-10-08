@@ -7,9 +7,11 @@
 //! to ASCII and then to TSV (docs/DESIGN.md §5), so none of that is repeated here. A column
 //! whose sampled cells are all numbers is right-aligned.
 //!
-//! The first record is *always* the header. Guessing whether a file has one is a heuristic that
-//! is wrong in both directions, and a header row that renders as a body row is the lesser
-//! surprise than the reverse.
+//! The first record is the header, unless it is plainly data: a record made only of numbers
+//! names nothing, so it becomes the first row and the table has no header. That is a heuristic
+//! and it can be wrong (a header of years, `2021,2022,2023`), which is what `--csv-header yes`
+//! and `--csv-header no` are for; they override it either way. Only that one shape is guessed
+//! at: a word anywhere in the first record keeps it a header.
 //!
 //! # The delimiter
 //!
@@ -118,6 +120,7 @@ impl DocumentReader for CsvReader {
         Ok(Box::new(CsvEvents::new(
             src,
             ctx.delimiter.unwrap_or(b','),
+            ctx.header,
             self.max_cells,
         )))
     }
@@ -308,6 +311,23 @@ fn looks_numeric(cell: &[u8]) -> bool {
         && s.parse::<f64>().is_ok()
 }
 
+/// Whether a record is made only of numbers (and empty cells), and has at least one. A header
+/// names things, so such a record is data. The exception is a header made of years or other
+/// numbers, which is why `--csv-header yes` exists.
+fn is_all_numbers<'r>(cells: impl Iterator<Item = &'r [u8]>) -> bool {
+    let mut any = false;
+    for cell in cells {
+        if cell.is_empty() {
+            continue;
+        }
+        if !looks_numeric(cell) {
+            return false;
+        }
+        any = true;
+    }
+    any
+}
+
 // ---------------------------------------------------------------------------- events
 
 #[derive(Debug, PartialEq, Eq)]
@@ -325,6 +345,8 @@ struct CsvEvents<'a> {
     /// already decoded.
     raw: bool,
     name: String,
+    /// Whether the first record is a header, when something said so; else decided by looking.
+    header: Option<bool>,
     /// The cell ceiling, and the row ceiling derived from it once the column count is known.
     max_cells: usize,
     max_rows: usize,
@@ -336,7 +358,7 @@ struct CsvEvents<'a> {
 }
 
 impl<'a> CsvEvents<'a> {
-    fn new(src: &'a Source, delim: u8, max_cells: usize) -> Self {
+    fn new(src: &'a Source, delim: u8, header: Option<bool>, max_cells: usize) -> Self {
         // UTF-8 is read in place, so nothing walks the file up front; anything else is
         // transcoded once by `as_str`, which caches it in the source.
         let utf8 = src.encoding_name().eq_ignore_ascii_case("utf-8");
@@ -359,6 +381,7 @@ impl<'a> CsvEvents<'a> {
             },
             raw: utf8,
             name: src.display_name().to_string(),
+            header,
             max_cells,
             max_rows: usize::MAX,
             rows: 0,
@@ -452,23 +475,30 @@ impl<'a> CsvEvents<'a> {
         }))));
 
         let start = self.cur.pos;
-        let Some((header, unterminated)) = self.cur.record() else {
+        let before = self.cur;
+        let Some((first, unterminated)) = self.cur.record() else {
             self.bare(Event::End(TagKind::Document));
             self.phase = Phase::Done;
             return;
         };
         self.note_quote(unterminated, start);
-        self.max_rows = (self.max_cells / header.len().max(1)).max(1);
+        self.max_rows = (self.max_cells / first.len().max(1)).max(1);
 
-        // Which columns are numbers, from a bounded look ahead on a copy of the cursor.
-        let mut numeric = vec![true; header.len()];
-        let mut seen = vec![false; header.len()];
-        let mut ahead = self.cur;
+        // A header, unless told otherwise or unless the first record is plainly data.
+        let has_header = self
+            .header
+            .unwrap_or_else(|| !is_all_numbers(first.iter().map(Raw::bytes)));
+
+        // Which columns are numbers, from a bounded look ahead on a copy of the cursor. With no
+        // header the first record is data too, so the look ahead starts before it.
+        let mut numeric = vec![true; first.len()];
+        let mut seen = vec![false; first.len()];
+        let mut ahead = if has_header { self.cur } else { before };
         for _ in 0..ALIGN_SAMPLE {
             let Some((record, _)) = ahead.record() else {
                 break;
             };
-            for (col, field) in record.iter().take(header.len()).enumerate() {
+            for (col, field) in record.iter().take(first.len()).enumerate() {
                 let cell = field.bytes();
                 if !cell.is_empty() {
                     seen[col] = true;
@@ -476,7 +506,7 @@ impl<'a> CsvEvents<'a> {
                 }
             }
         }
-        let align = (0..header.len())
+        let align = (0..first.len())
             .map(|c| {
                 if seen[c] && numeric[c] {
                     Align::Right
@@ -487,11 +517,20 @@ impl<'a> CsvEvents<'a> {
             .collect();
 
         self.bare(Event::Start(Tag::Table { align }));
-        self.bare(Event::Start(Tag::TableHead));
-        for field in &header {
-            self.cell(field, start);
+        if has_header {
+            self.bare(Event::Start(Tag::TableHead));
+            for field in &first {
+                self.cell(field, start);
+            }
+            self.bare(Event::End(TagKind::TableHead));
+        } else {
+            self.rows += 1;
+            self.bare(Event::Start(Tag::TableRow));
+            for field in &first {
+                self.cell(field, start);
+            }
+            self.bare(Event::End(TagKind::TableRow));
         }
-        self.bare(Event::End(TagKind::TableHead));
         self.phase = Phase::Rows;
     }
 
@@ -696,6 +735,22 @@ mod tests {
             .collect()
     }
 
+    fn read_with_header(input: &str, header: Option<bool>) -> Vec<Event<'static>> {
+        let src: &'static Source = Box::leak(Box::new(Source::from_bytes(
+            "t.csv",
+            input.as_bytes().to_vec(),
+        )));
+        let ctx = ReadContext {
+            header,
+            ..ReadContext::default()
+        };
+        CsvReader::new()
+            .read(src, &ctx)
+            .unwrap()
+            .map(|e| e.unwrap().node)
+            .collect()
+    }
+
     fn table(input: &str) -> Vec<Event<'static>> {
         read(input.as_bytes(), b',', CsvReader::new())
     }
@@ -750,6 +805,62 @@ mod tests {
         assert_eq!(align_of(&ev), [Align::Right, Align::None]);
         // Nothing sampled is not numeric either.
         assert_eq!(align_of(&table("a,b\n1,\n")), [Align::Right, Align::None]);
+    }
+
+    #[test]
+    fn a_first_record_of_only_numbers_is_data_not_a_header() {
+        let ev = table("1,2.5,-3\n4,5,6\n");
+        assert_eq!(count(&ev, TagKind::TableHead), 0);
+        assert_eq!(count(&ev, TagKind::TableRow), 2);
+    }
+
+    #[test]
+    fn one_word_in_the_first_record_keeps_it_a_header() {
+        let ev = table("id,1,2\n1,2,3\n");
+        assert_eq!(count(&ev, TagKind::TableHead), 1);
+        assert_eq!(count(&ev, TagKind::TableRow), 1);
+        // And a record of nothing at all names nothing but is not "numbers".
+        assert_eq!(count(&table(",,\n1,2,3\n"), TagKind::TableHead), 1);
+    }
+
+    #[test]
+    fn a_header_can_be_forced_either_way() {
+        // Years are numbers and names: the heuristic cannot know, the flag can.
+        let years = "2021,2022\n10,20\n";
+        assert_eq!(count(&read_with_header(years, None), TagKind::TableHead), 0);
+        let forced = read_with_header(years, Some(true));
+        assert_eq!(count(&forced, TagKind::TableHead), 1);
+        assert_eq!(count(&forced, TagKind::TableRow), 1);
+
+        let words = "name,qty\nbolt,3\n";
+        let none = read_with_header(words, Some(false));
+        assert_eq!(count(&none, TagKind::TableHead), 0);
+        assert_eq!(count(&none, TagKind::TableRow), 2);
+    }
+
+    #[test]
+    fn without_a_header_the_first_record_still_counts_for_alignment() {
+        // The first record is data here, so a word in it must keep the column left-aligned.
+        let ev = read_with_header("1,word\n2,3\n", Some(false));
+        assert_eq!(align_of(&ev), [Align::Right, Align::None]);
+        let ev = read_with_header("1,2\n3,4\n", Some(false));
+        assert_eq!(align_of(&ev), [Align::Right, Align::Right]);
+    }
+
+    #[test]
+    fn a_headerless_first_row_counts_toward_the_ceiling() {
+        let src = "1\n2\n3\n4\n5\n";
+        let ev = read(src.as_bytes(), b',', CsvReader::with_max_cells(3));
+        assert_eq!(count(&ev, TagKind::TableRow), 3);
+        let tail: String = ev
+            .iter()
+            .skip_while(|e| !matches!(e, Event::Start(Tag::Preformatted)))
+            .filter_map(|e| match e {
+                Event::Text(t) => Some(t.as_ref()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(tail, "4\n5\n");
     }
 
     #[test]

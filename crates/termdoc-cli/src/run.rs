@@ -12,7 +12,7 @@ use termdoc_core::{
 use termdoc_layout::{Layout, LayoutOptions, Theme};
 use termdoc_term::{Caps, ColorDepth, Fidelity, MAX_COMFORTABLE_WIDTH, UnicodeLevel};
 
-use crate::cli::{BackendChoice, Cli, When};
+use crate::cli::{BackendChoice, Cli, CsvHeader, When};
 
 /// Builds the registry with everything this binary can read.
 pub fn build_registry() -> Registry {
@@ -220,7 +220,13 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
 
         let ctx = ReadContext {
             metadata_only: cli.meta,
-            delimiter: (format == FormatId::Csv).then(|| csv_delimiter(&src)),
+            delimiter: (format == FormatId::Csv)
+                .then(|| cli.delimiter.unwrap_or_else(|| csv_delimiter(&src))),
+            header: match cli.csv_header {
+                CsvHeader::Auto => None,
+                CsvHeader::Yes => Some(true),
+                CsvHeader::No => Some(false),
+            },
             ..ReadContext::default()
         };
         let events = reader.read(&src, &ctx)?;

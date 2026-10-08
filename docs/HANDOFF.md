@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,500 lines across 8 crates |
-| Tests | **360**, all green |
+| Tests | **372**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -57,7 +57,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 360 passing
+cargo test --workspace                                   # expect 372 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -122,8 +122,10 @@ Two things are not obvious from the code:
   builder costs ~0.9 KB per cell. Past it the table closes, a warning says so, and the remaining
   records follow as verbatim preformatted text, so nothing is lost and `| head` stays lazy.
 
-Left for later, deliberately: a `--delimiter` flag, a `--no-header` flag, and treating a numeric
-first row as data. None is needed to read a file; all are cheap if someone asks.
+The overrides exist too: `--delimiter <char|name>` replaces detection, and
+`--csv-header auto|yes|no` decides whether the first record is a header (`auto` treats a first
+record made only of numbers as data). It is **`--csv-header`, not `--no-header`**, because
+`--no-header` already means "no `==> file <==` banner" and renaming either would break users.
 
 ### M1-3. Syntax highlighting
 

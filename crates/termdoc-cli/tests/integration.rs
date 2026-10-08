@@ -721,3 +721,64 @@ fn a_csv_past_the_ceiling_still_shows_every_record() {
     // 12,500 is the ceiling for two columns; the last record is far beyond it.
     assert!(stdout.contains("19999,x"), "the tail was lost");
 }
+
+#[test]
+fn delimiter_overrides_detection() {
+    // A space is not among the delimiters detection will guess, so only the flag can say it.
+    let path = scratch("o.csv", b"a b\n1 2\n");
+    let p = path.to_str().unwrap();
+    let (guess, _, _) = run(&["--color", "never", "--width", "60", p]);
+    let (forced, stderr, code) = run(&[
+        "--color",
+        "never",
+        "--width",
+        "60",
+        "--delimiter",
+        "space",
+        p,
+    ]);
+    assert_eq!(code, 0, "{stderr}");
+    // Two columns, and the numeric ones are right-aligned to the three-cell minimum.
+    assert!(forced.contains("│   a │   b │"), "{forced}");
+    // Without the flag the space stayed inside one cell.
+    assert!(guess.contains("a b"), "{guess}");
+    assert!(!guess.contains("│   a │"), "{guess}");
+}
+
+#[test]
+fn a_bad_delimiter_is_a_usage_error() {
+    let path = scratch("p.csv", b"a,b\n1,2\n");
+    let (_, stderr, code) = run(&["--delimiter", "ab", path.to_str().unwrap()]);
+    assert_eq!(code, 2, "{stderr}");
+    assert!(stderr.contains("not a delimiter"), "{stderr}");
+}
+
+#[test]
+fn a_numeric_first_row_is_data_unless_told_otherwise() {
+    let path = scratch("n.csv", b"2021,2022\n10,20\n30,40\n");
+    let p = path.to_str().unwrap();
+    let (auto, _, _) = run(&["--color", "never", "--width", "60", p]);
+    let (header, _, _) = run(&[
+        "--color",
+        "never",
+        "--width",
+        "60",
+        "--csv-header",
+        "yes",
+        p,
+    ]);
+    // A header is followed by a rule; data is not.
+    let rules = |s: &str| s.lines().filter(|l| l.starts_with('├')).count();
+    assert_eq!(rules(&auto), 0, "{auto}");
+    assert_eq!(rules(&header), 1, "{header}");
+}
+
+#[test]
+fn no_header_still_means_no_filename_banner() {
+    // `--no-header` predates the CSV flag and is about the `==> file <==` banners.
+    let a = scratch("a.csv", b"x,y\n1,2\n");
+    let b = scratch("b.csv", b"x,y\n3,4\n");
+    let (out, _, code) = run(&["--no-header", a.to_str().unwrap(), b.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(!out.contains("==>"), "{out}");
+}

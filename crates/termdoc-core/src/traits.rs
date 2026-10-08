@@ -48,6 +48,8 @@ pub struct ReadContext {
     /// A reader may not depend on `termdoc-detect`, so what detection knows reaches it here.
     /// `None` means nobody knows, and the reader assumes a comma.
     pub delimiter: Option<u8>,
+    /// Whether the first record of delimited text is a header. `None` lets the reader decide.
+    pub header: Option<bool>,
 }
 
 /// Proposes a format based on the source's prefix.

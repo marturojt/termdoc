@@ -1,0 +1,14 @@
+2026-08-10T12:00:00.123Z INFO  server listening on :8080 port=8080 pid=4242
+2026-08-10T12:00:00.480Z DEBUG loaded 3 routes from routes.toml
+2026-08-10T12:00:01.002Z TRACE tick elapsed_ms=1
+2026-08-10 12:00:02,517 [worker-3] WARN  slow request path=/search?q=rust&page=2 took=1.9s
+2026-08-10 12:00:03,001 [worker-1] ERROR upstream refused the connection
+    at net.connect (net.rs:212)
+    at Client.get (client.rs:88)
+Caused by: connection refused (os error 111)
+Aug 10 12:00:04 host sshd[311]: error: key_exchange_identification: Connection closed
+Aug 10 12:00:05 host app[77]: notice: reloaded configuration
+12:00:06.250 FATAL out of memory, café — 日本語
+ts=12:00:07 level=warn msg="disk almost full" host=a1 used=91%
+[2026-08-10 12:00:08] [INFO] the fatal error was already handled
+a line with no timestamp at all

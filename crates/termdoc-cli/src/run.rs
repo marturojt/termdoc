@@ -6,8 +6,9 @@
 use std::io::Write;
 
 use termdoc_backend::{AnsiBackend, PlainBackend};
+use termdoc_core::stream::{Encoding, LineStream, StdinFeed, UTF_8};
 use termdoc_core::{
-    Backend, Diagnostic, Error, FormatId, ReadContext, Registry, Result, Severity, Source,
+    Backend, Diagnostic, Error, Events, FormatId, ReadContext, Registry, Result, Severity, Source,
     Transform, exit,
 };
 use termdoc_layout::{Layout, LayoutOptions, Theme};
@@ -146,11 +147,18 @@ fn make_backend(cli: &Cli, fidelity: Fidelity) -> Box<dyn Backend> {
 }
 
 /// Opens a source from a command-line argument.
-fn open_source(arg: &str) -> Result<Source> {
+/// What the pipeline starts from. A file is all there; stdin may still be arriving, so it comes
+/// as a feed together with a prefix for detection to look at.
+fn open_source(arg: &str) -> Result<(Source, Option<StdinFeed>)> {
     if arg == "-" {
-        Source::from_stdin()
+        let mut feed = StdinFeed::stdin();
+        // Waits for the first data and a moment more, never for the end: `kubectl logs -f` has
+        // no end, and detection only ever looks at the first few kilobytes.
+        feed.probe();
+        let prefix = feed.peek_source();
+        Ok((prefix, Some(feed)))
     } else {
-        Source::open(arg)
+        Ok((Source::open(arg)?, None))
     }
 }
 
@@ -201,9 +209,8 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
     let mut any_diagnostic = false;
 
     for (idx, target) in targets.iter().enumerate() {
-        let mut src = open_source(target)?;
+        let (mut src, mut feed) = open_source(target)?;
         let format = resolve_format(cli, &registry, &mut src)?;
-        let src = src;
 
         if cli.explain {
             explain(&registry, &src, format, cli, out)?;
@@ -216,6 +223,23 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
             any_diagnostic = true;
             worst = worst.max(d.severity);
         }
+
+        // Stdin is read as it arrives when the format can be, and to its end when it cannot.
+        // Either way detection has already decided from the first chunk, as it does for a file
+        // from its first kilobytes.
+        let mut stream = None;
+        if let Some(feed) = feed.take() {
+            let encoding = src.encoding_name();
+            if reader.streams_input() && !cli.meta {
+                let encoding = Encoding::for_label(encoding.as_bytes()).unwrap_or(UTF_8);
+                stream = Some(feed.into_lines(encoding));
+            } else {
+                src = feed.into_source()?;
+                src.set_encoding(encoding)?;
+            }
+        }
+        let src = src;
+        let watch = stream.as_ref().map(LineStream::watch);
 
         let ctx = ReadContext {
             metadata_only: cli.meta,
@@ -231,7 +255,10 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
             },
             ..ReadContext::default()
         };
-        let events = reader.read(&src, &ctx)?;
+        let events: Events<'_> = match stream {
+            Some(stream) => reader.read_stream(stream, &ctx)?,
+            None => reader.read(&src, &ctx)?,
+        };
         // Fenced code blocks, in any document, get their grammar. Not worth the work when the
         // output carries no colour, and `--meta` shows no body at all.
         let events = if ctx.styled && !cli.meta {
@@ -272,7 +299,18 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
         loop {
             match layout.next() {
                 None => break,
-                Some(Ok(line)) => backend.write_line(&line, out)?,
+                Some(Ok(line)) => {
+                    backend.write_line(&line, out)?;
+                    // A line that waits in a buffer while the program waits for the next one is
+                    // a log that appears to hang. So when the stream has nothing more to give
+                    // *right now*, the output is flushed before the wait begins. Not after every
+                    // line: `cat huge.log | termdoc` would pay a system call for each.
+                    if let Some(watch) = &watch
+                        && watch.starved()
+                    {
+                        out.flush()?;
+                    }
+                }
                 Some(Err(e)) => {
                     backend.finish(out)?;
                     return Err(e);

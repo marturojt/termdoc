@@ -92,7 +92,7 @@ _PEAK_RSS_SNIPPET = (
 )
 
 
-def own_memory_mb(args: list) -> float | None:
+def own_memory_mb(args: list, stdin_path: Path | None = None) -> float | None:
     """The child process's anonymous memory, in MB.
 
     Own memory is measured rather than RSS, and deliberately so. With `mmap`, walking the
@@ -101,10 +101,20 @@ def own_memory_mb(args: list) -> float | None:
     the process owns. See docs/DESIGN.md §8.
     """
     system = platform.system()
+    stdin = open(stdin_path, "rb") if stdin_path else None
+    try:
+        return _own_memory_mb(system, args, stdin)
+    finally:
+        if stdin:
+            stdin.close()
+
+
+def _own_memory_mb(system: str, args: list, stdin) -> float | None:
     if system == "Darwin":
         # macOS reports "peak memory footprint", which is exactly the anonymous memory.
         r = subprocess.run(
             ["/usr/bin/time", "-l", *map(str, args)],
+            stdin=stdin,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
@@ -122,6 +132,7 @@ def own_memory_mb(args: list) -> float | None:
         # interpreter per measurement has exactly one child, which makes the figure this child's.
         r = subprocess.run(
             [sys.executable, "-c", _PEAK_RSS_SNIPPET, *map(str, args)],
+            stdin=stdin,
             capture_output=True,
             text=True,
         )
@@ -220,6 +231,58 @@ def gate_lazy_output() -> None:
         )
 
 
+def gate_stdin() -> None:
+    """Standard input is read as it arrives, and nothing already shown is kept.
+
+    Two things, one per failure. Piping a huge file through must cost what reading it as a file
+    does: `Source::from_stdin` used to hold every byte, so 122 MB in meant 122 MB of memory. And
+    an input that never ends must not stop the first lines from appearing: `yes | termdoc |
+    head` used to read forever and print nothing, which is what the process being *fast* here
+    proves, since "read forever" has no finishing time to be fast at.
+    """
+    log = ensure_log()
+    mb = own_memory_mb([BINARY], stdin_path=log)
+    if mb is None:
+        print(f"  \033[33mSKIP\033[0m  stdin memory — no method available on {platform.system()}")
+    else:
+        size_mb = log.stat().st_size / 1048576
+        limit = MAX_OWN_MEM_MB
+        detail = f"{mb:.2f} MB with {size_mb:.0f} MB piped in (limit {limit:.0f} MB)"
+        if platform.system() == "Linux":
+            detail += " [pessimistic ceiling]"
+        (ok if mb <= limit else fail)("stdin memory", detail)
+
+    if platform.system() == "Windows":
+        print("  \033[33mSKIP\033[0m  endless stdin — no `yes` on Windows")
+        return
+    t = time.perf_counter()
+    yes = subprocess.Popen(
+        ["yes", "2026-08-10 12:00:00 INFO an endless stream"], stdout=subprocess.PIPE
+    )
+    term = subprocess.Popen(
+        [BINARY], stdin=yes.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    head = subprocess.Popen(["head", "-5"], stdin=term.stdout, stdout=subprocess.PIPE)
+    yes.stdout.close()
+    term.stdout.close()
+    try:
+        output = head.communicate(timeout=10)[0]
+    except subprocess.TimeoutExpired:
+        head.kill()
+        output = b""
+    elapsed = (time.perf_counter() - t) * 1000
+    for proc in (term, yes):
+        proc.kill()
+        proc.wait()
+    lines = len(output.splitlines())
+    if lines != 5:
+        fail("endless stdin (| head -5)", f"expected 5 lines in 10 s, got {lines}")
+    elif elapsed > 1000.0:
+        fail("endless stdin (| head -5)", f"{elapsed:.0f} ms (limit 1000 ms)")
+    else:
+        ok("endless stdin (| head -5)", f"{elapsed:.0f} ms")
+
+
 def main() -> int:
     if not BINARY.exists():
         print(f"{BINARY} does not exist; run `cargo build --release` first", file=sys.stderr)
@@ -229,6 +292,7 @@ def main() -> int:
     gate_startup()
     gate_highlight()
     gate_memory()
+    gate_stdin()
     if platform.system() != "Windows":
         gate_lazy_output()
     else:

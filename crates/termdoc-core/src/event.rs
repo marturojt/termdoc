@@ -225,6 +225,15 @@ pub enum TokenRole {
     Operator,
     /// A named constant or a character escape.
     Constant,
+    /// The time at the start of a log line.
+    Timestamp,
+    /// A log level, by how worrying it is. `Fatal`, `critical` and `panic` are errors here: they
+    /// are meant to be read the same way.
+    LevelTrace,
+    LevelDebug,
+    LevelInfo,
+    LevelWarn,
+    LevelError,
 }
 
 /// `Tag`'s discriminant, so `End` does not have to carry the payload again.

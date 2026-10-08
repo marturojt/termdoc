@@ -1,6 +1,6 @@
 # termdoc design
 
-> Architecture document. Status: **M0 complete, M1 in progress**.
+> Architecture document. Status: **M0 and M1 complete**; M2 (the pager) is next.
 > Last updated: 2026-10-08.
 
 `termdoc` is a universal document viewer for the terminal. It reads any document and renders it
@@ -186,6 +186,9 @@ pub type Events<'a> = Box<dyn Iterator<Item = Result<Spanned<Event<'a>>>> + 'a>;
 > `Keyword`, `Type`, `Function`, `Operator` and `Constant` added for code. It maps the grammar's
 > *scopes* to roles and never uses a theme's RGB colours, so highlighted code obeys the terminal's
 > own palette and the colour ladder like everything else.
+>
+> The log reader adds `Timestamp` and `LevelTrace`/`Debug`/`Info`/`Warn`/`Error`: a log is read down
+> its levels, so those carry the colour and the timestamp recedes.
 >
 > A `CodeBlock` the highlighter understands leaves its transform as `Preformatted` with tokens
 > (`CodeBlock` carries the theme's flat colour, which must not sit under them); one it does not
@@ -502,7 +505,8 @@ recorded as informational and grows with the bytes touched. Two practical conseq
 - If RSS ever needs to be flat too — a cgroups environment that counts mapped pages, say — the
   route is reading in blocks instead of mapping, **and only in the streaming readers**. It costs
   the `Cow::Borrowed` zero-copy, so it will not be done without a measured reason. To be
-  reassessed in M1 with the log reader.
+  reassessed in M1 with the log reader. **Reassessed (M1-4): not needed.** The streaming readers
+  still map the file, and RSS is not what the budget is about.
 
 How the rest is achieved:
 
@@ -591,7 +595,7 @@ Every milestone leaves a **usable** tool, not scaffolding.
 | M | Scope | Result |
 |---|---|---|
 | **M0 Foundations** | Workspace; `Event`/`Tag`/`Line`; `Source` (mmap + stdin); layout engine (wrapping, lists, tables, code); ANSI + Plain backends; `termdoc-term`; the CLI; the snapshot harness. Formats: TXT, Markdown | `termdoc README.md` already beats `cat`; pipes behave correctly |
-| **M1 Data and code** | JSON, YAML, TOML, XML, CSV, syntax-highlighted code, logs — all streaming. The complete detection engine with `--explain` | Covers the majority of daily use. **In progress:** `termdoc-detect` landed |
+| **M1 Data and code** | JSON, YAML, TOML, XML, CSV, syntax-highlighted code, logs — all streaming. The complete detection engine with `--explain` | Covers the majority of daily use. **Complete.** |
 | **M2 Pager** | A `ratatui` TUI: scrolling, search, TOC navigation, follow mode (`-f`), keybindings. TTY/pipe auto-detection | Replaces `less` for documents |
 | **M3 Rich documents** | HTML, DOCX, ODT, RTF, EPUB (sharing the ZIP+XML infrastructure), PDF. Images and graphics backends | Closes out the main format list |
 | **M4 Extensibility** | The plugin host, protocol v1, the SDK, the manifest cache, a reference plugin. Markdown and HTML backends | Third parties add formats without touching the core |

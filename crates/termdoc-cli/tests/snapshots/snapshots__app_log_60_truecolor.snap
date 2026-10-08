@@ -1,0 +1,25 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;90m2026-08-10T12:00:00.123Z<ESC>[0m <ESC>[0;92mINFO<ESC>[0m  server listening on :8080 <ESC>[0;96mpor<ESC>[0m
+<ESC>[0;96mt<ESC>[0m=8080 <ESC>[0;96mpid<ESC>[0m=4242
+<ESC>[0;90m2026-08-10T12:00:00.480Z<ESC>[0m <ESC>[0;90mDEBUG<ESC>[0m loaded 3 routes from routes.t
+oml
+<ESC>[0;90m2026-08-10T12:00:01.002Z<ESC>[0m <ESC>[0;2;90mTRACE<ESC>[0m tick <ESC>[0;96melapsed_ms<ESC>[0m=1
+<ESC>[0;90m2026-08-10 12:00:02,517<ESC>[0m [worker-3] <ESC>[0;93mWARN<ESC>[0m  slow request <ESC>[0;96mpath<ESC>[0m=/
+search?q=rust&page=2 <ESC>[0;96mtook<ESC>[0m=1.9s
+<ESC>[0;90m2026-08-10 12:00:03,001<ESC>[0m [worker-1] <ESC>[0;1;91mERROR<ESC>[0m upstream refused th
+e connection
+    at net.connect (net.rs:212)
+    at Client.get (client.rs:88)
+Caused by: connection refused (os error 111)
+<ESC>[0;90mAug 10 12:00:04<ESC>[0m host sshd[311]: <ESC>[0;1;91merror<ESC>[0m: key_exchange_identifi
+cation: Connection closed
+<ESC>[0;90mAug 10 12:00:05<ESC>[0m host app[77]: <ESC>[0;92mnotice<ESC>[0m: reloaded configuration
+<ESC>[0;90m12:00:06.250<ESC>[0m <ESC>[0;1;91mFATAL<ESC>[0m out of memory, café — 日本語
+<ESC>[0;96mts<ESC>[0m=12:00:07 <ESC>[0;96mlevel<ESC>[0m=<ESC>[0;93mwarn<ESC>[0m <ESC>[0;96mmsg<ESC>[0m="disk almost full" <ESC>[0;96mhost<ESC>[0m=a1 <ESC>[0;96mused<ESC>[0m=9
+1%
+[<ESC>[0;90m2026-08-10 12:00:08<ESC>[0m] [<ESC>[0;92mINFO<ESC>[0m] the fatal error was already han
+dled
+a line with no timestamp at all

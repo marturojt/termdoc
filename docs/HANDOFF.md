@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  █████████████████░░░  ~85%       detection, encoding, JSON, YAML, TOML, XML, CSV, code landed; logs pending
+M1  ████████████████████  complete   detection, encoding, JSON, YAML, TOML, XML, CSV, code, logs, live stdin
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~14,000 lines across 9 crates |
-| Tests | **407**, all green |
+| Tests | **449**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -44,9 +44,11 @@ cat README.md | termdoc        # detected by content, no filename needed
 termdoc --explain odd.dat      # why that format, and which layers lost
 termdoc --encoding latin1 x.txt
 termdoc --ascii --width 40 t.md
+kubectl logs -f pod | termdoc  # shown as it arrives, coloured by level
+termdoc --csv-header no --delimiter ';' data.csv
 ```
 
-Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code**. Detection recognizes far more (HTML, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code**, and stdin is read as it arrives for the line-oriented ones. Detection recognizes far more (HTML, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
 without its own reader falls back to plain text with a warning on stderr. That fallback is
 deliberate, not an oversight — see §4.
 
@@ -57,7 +59,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 407 passing
+cargo test --workspace                                   # expect 449 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -72,7 +74,8 @@ suite has no known flakiness.
 
 ## 3. What to do next
 
-The remaining M1 work, in the order I would keep.
+M1 is done; what follows is the record of how, kept because the decisions in it are not obvious from the
+code. **The next milestone is M2, the pager** (`docs/DESIGN.md` §11).
 
 ### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, ~~TOML~~, ~~XML~~  ← done
 
@@ -159,16 +162,50 @@ Decisions worth knowing before touching it:
 - The detection's `language_for` is *not* used: `syntect` resolves the grammar itself from the
   file name, the extension, or a `#!` line, and a reader could not call detection anyway.
 
-### M1-4. Log reader and incremental stdin
+### M1-4. ~~Log reader and incremental stdin~~  ← done (2026-10-08) — **M1 is complete**
 
-Timestamp and severity recognition with per-level highlighting. `termdoc-detect` already recognizes
-ISO-8601, bare clocks and syslog shapes in `structural.rs::starts_with_timestamp` — reuse that
-rather than writing a second parser.
+Two things, built together because the second is what the first is for.
 
-This is also where **incremental stdin** finally matters, and it is the one known limitation to
-retire: `Source::from_stdin` buffers everything today (documented in `source.rs`). Until it is
-incremental, `kubectl logs -f | termdoc` cannot work. Expect this to be the hardest item, because it
-means an input path that is not a single `&[u8]`, and `Events<'a>` borrows from exactly that.
+**The log reader** (`termdoc-read-text/src/log.rs`) colours the timestamp, the level and the keys of
+`key=value` pairs, and leaves the rest of the line alone. It highlights rather than parses, like
+YAML. Five roles were added (`Timestamp`, `LevelTrace/Debug/Info/Warn/Error`). Timestamps are found by
+`termdoc_core::timestamp`, **the same parser detection uses** to decide a file is a log, so "detected
+as a log" and "highlighted as a log" cannot disagree; it lives in core because a reader may depend on
+nothing else. A level counts only within the first few words after the timestamp, so a line that
+*mentions* a fatal error is not coloured as one; an explicit `level=` wins over a level word.
+
+**Incremental stdin** (`termdoc-core/src/stream.rs`) retires the last known limitation. The design,
+and why:
+
+- `Events<'a>` borrows from a `&Source`, and a growing buffer cannot be borrowed from. So a stream
+  does not become a `Source`. A reader that can read line by line says so (`streams_input`) and
+  takes a `LineStream` (`read_stream`), emitting owned lines; every other reader gets stdin read to
+  its end first, exactly as before. **No existing reader changed.**
+- A **thread** reads stdin into a **bounded queue**. That gives three things at once: detection can
+  look at the first chunk without waiting for an 8 KiB probe a slow stream will never fill
+  (`fill_probe`: first data, then 100 ms of grace); a fast producer waits for a slow consumer
+  (`yes | termdoc | head` buffers nothing); and the consumer can know *before* it blocks that it is
+  about to (`StreamWatch::starved`).
+- **That last one is the whole trick for `kubectl logs -f`.** Output is buffered, so a line would
+  sit there while the program waits for the next. `run.rs` flushes when the stream is starved —
+  nothing complete buffered, nothing queued, input not ended — and not otherwise, because flushing
+  after every line costs a system call a line on `cat huge.log | termdoc`.
+- Measured: 122 MB piped in costs **2.8 MB** (it used to cost 122 MB); `yes | termdoc | head -5`
+  answers in 11 ms; throughput is unchanged (≈3.4 s per million lines, file or stdin). Colour adds
+  ≈0.7 s per million lines for the log lexer. `perf-gate.py` pins both stdin properties.
+
+Limits worth knowing, none of them a bug:
+
+- **Detection needs three timestamped lines** to call something a log. A live stream that starts
+  with one line is treated as plain text; `--from log` says otherwise. (Plain text streams too, so
+  nothing is lost, only the colour.)
+- **The encoding is decided from the first chunk.** A stream that changes encoding halfway gets
+  replacement characters and one warning.
+- **A line longer than 16 MiB is split** rather than buffered without bound (`MAX_LINE_BYTES`).
+- Warnings for a stream appear on stderr at its end, not as they happen.
+- `--explain` and `--meta` on stdin look at the first chunk only, which is the point.
+- **Not done, and it is M2's:** `-f` for *files* (following a file as it grows). `StreamWatch` and
+  `LineStream` are the pieces it will want.
 
 ---
 

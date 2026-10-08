@@ -13,8 +13,9 @@ It is not an editor, not a converter, and not an IDE.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
   already paid for. **Read it first if you are picking this up mid-stream.**
 
-Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML, XML, CSV and source-code readers landed;
-only the dedicated log reader has not. Roadmap in `docs/DESIGN.md` §11.
+Status: **M0 and M1 complete** — detection, encoding, and readers for Markdown, plain text, logs,
+JSON, YAML, TOML, XML, CSV and source code, with stdin read as it arrives. **M2, the pager, is next.**
+Roadmap in `docs/DESIGN.md` §11.
 
 Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
 [termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
@@ -28,7 +29,7 @@ Code, comments, test names and user-facing messages are all in **English**.
 ## Commands
 
 ```bash
-cargo test --workspace                          # 407 tests
+cargo test --workspace                          # 449 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc
@@ -148,6 +149,9 @@ Do not break these without changing the design first:
 | Encoding detection | `crates/termdoc-detect/src/charset.rs` |
 | Syntax highlighting: scope → role rules, ceilings, costs | `crates/termdoc-read-code/src/engine.rs` |
 | Shared line-by-line reader plumbing | `crates/termdoc-core/src/highlight.rs` |
+| Input that arrives over time (stdin feed, line stream, flush-when-starved) | `crates/termdoc-core/src/stream.rs` |
+| The one timestamp parser (detection and the log reader share it) | `crates/termdoc-core/src/timestamp.rs` |
+| Log highlighting: timestamp, level, logfmt keys | `crates/termdoc-read-text/src/log.rs` |
 | Magic bytes and intra-ZIP | `crates/termdoc-detect/src/magic.rs` |
 | CLI flags | `crates/termdoc-cli/src/cli.rs` |
 | Pipeline wiring | `crates/termdoc-cli/src/run.rs` |
@@ -203,6 +207,10 @@ the terminal width or a color inside a reader, the answer belongs in the layout 
   must keep the `\n` on every line it emits (`"one\n"`, still a borrowed slice) and may split a line
   into `Tag::Token` runs for colour. Emitting `Text("one")` with no terminator merges it into the
   next line. The layout trims `\n` and `\r\n` itself (DESIGN §2.2).
+- **stdin is not a `Source`** while it may still be arriving. `run.rs` reads a first chunk for
+  detection, then either hands a `LineStream` to a reader that says `streams_input()` (plain text,
+  logs) or reads to the end and builds a `Source` as before. `Source::from_stdin` is no longer on
+  that path. Output is flushed when the stream is *starved*, not per line.
 - A reader cannot call `termdoc-detect`, so what detection knows reaches it through
   `ReadContext` (today: `delimiter` for CSV, filled by `run.rs::csv_delimiter`). Add a field there
   rather than a Cargo edge.

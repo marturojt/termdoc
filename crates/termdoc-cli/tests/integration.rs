@@ -841,3 +841,150 @@ fn line_numbers_still_work_on_highlighted_code() {
     assert_eq!(numbered.len(), 2, "{out:?}");
     assert!(numbered[1].contains('2'), "{out:?}");
 }
+
+// ---------------------------------------------------------------- live input
+
+/// Spawns termdoc reading a pipe that stays open, and gives back its stdin and a channel of the
+/// lines it prints. Reading on a thread is what lets a test say "this line arrived within five
+/// seconds" instead of hanging when it did not.
+fn spawn_live(
+    args: &[&str],
+) -> (
+    std::process::Child,
+    std::process::ChildStdin,
+    std::sync::mpsc::Receiver<String>,
+) {
+    use std::io::BufRead;
+    let mut child = Command::new(bin())
+        .args(args)
+        .env_remove("NO_COLOR")
+        .env_remove("CLICOLOR_FORCE")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("the binary must start");
+    let stdin = child.stdin.take().expect("stdin");
+    let stdout = child.stdout.take().expect("stdout");
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for line in std::io::BufReader::new(stdout).lines() {
+            // Stops when the program ends or when the test no longer listens.
+            match line {
+                Ok(l) => {
+                    if tx.send(l).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+    (child, stdin, rx)
+}
+
+fn next_line(rx: &std::sync::mpsc::Receiver<String>, what: &str) -> String {
+    rx.recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap_or_else(|_| panic!("no output within 10 s: {what}"))
+}
+
+#[test]
+fn a_live_pipe_is_shown_as_it_arrives_not_when_it_ends() {
+    // The point of incremental stdin, and the thing `kubectl logs -f | termdoc` needs: a line
+    // written to a pipe that is still open comes out, without waiting for the end.
+    let (mut child, mut stdin, rx) = spawn_live(&["--color", "never"]);
+
+    stdin
+        .write_all(b"2026-08-10 12:00:00 INFO first\n")
+        .unwrap();
+    stdin.flush().unwrap();
+    assert_eq!(
+        next_line(&rx, "the first line"),
+        "2026-08-10 12:00:00 INFO first"
+    );
+
+    // And again, much later than the detection's grace period: the stream is still live.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    stdin
+        .write_all(b"2026-08-10 12:00:01 WARN second\n")
+        .unwrap();
+    stdin.flush().unwrap();
+    assert_eq!(
+        next_line(&rx, "the second line"),
+        "2026-08-10 12:00:01 WARN second"
+    );
+
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn a_partial_line_waits_for_its_newline() {
+    let (mut child, mut stdin, rx) = spawn_live(&["--color", "never"]);
+    stdin.write_all(b"half a li").unwrap();
+    stdin.flush().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    assert!(
+        rx.try_recv().is_err(),
+        "a line that has not ended was shown"
+    );
+    stdin.write_all(b"ne\n").unwrap();
+    stdin.flush().unwrap();
+    assert_eq!(next_line(&rx, "the completed line"), "half a line");
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
+fn an_endless_input_does_not_hang_the_program() {
+    // `yes | termdoc | head`: before incremental stdin this read forever and printed nothing.
+    let (mut child, mut stdin, rx) = spawn_live(&["--color", "never"]);
+    let producer = std::thread::spawn(move || {
+        let chunk = "2026-08-10 12:00:00 INFO an endless stream of lines\n".repeat(200);
+        // Ends when the program is killed and the pipe breaks.
+        while stdin.write_all(chunk.as_bytes()).is_ok() {}
+    });
+    for i in 0..5 {
+        let line = next_line(&rx, &format!("line {i} of an endless input"));
+        assert!(line.contains("INFO"), "{line}");
+    }
+    child.kill().unwrap();
+    let _ = child.wait();
+    producer.join().unwrap();
+}
+
+#[test]
+fn a_stream_is_coloured_by_level_when_colour_is_forced() {
+    let input = "2026-08-10 12:00:00 INFO ok\n\
+                 2026-08-10 12:00:01 WARN careful\n\
+                 2026-08-10 12:00:02 ERROR boom\n\
+                 2026-08-10 12:00:03 INFO fine again\n";
+    // Four timestamped lines are enough for detection to call it a log, with no flag.
+    let (out, stderr, code) = run_stdin(&["--color", "always"], input);
+    assert_eq!(code, 0, "{stderr}");
+    // Bright green for INFO, bright yellow for WARN, bright red for ERROR: the levels carry
+    // the colour.
+    assert!(out.contains("\x1b[0;92mINFO"), "{out:?}");
+    assert!(out.contains("\x1b[0;93mWARN"), "{out:?}");
+    assert!(out.contains("\x1b[0;1;91mERROR"), "{out:?}");
+}
+
+#[test]
+fn a_stream_too_short_to_detect_can_still_be_told_what_it_is() {
+    // One or two lines are not enough evidence for detection, and a live stream often starts
+    // with one. `--from` is the answer.
+    let input = "2026-08-10 12:00:00 ERROR boom\n";
+    let (guess, _, _) = run_stdin(&["--color", "always"], input);
+    assert!(!guess.contains('\x1b'), "{guess:?}");
+    let (told, _, code) = run_stdin(&["--color", "always", "--from", "log"], input);
+    assert_eq!(code, 0);
+    assert!(told.contains("\x1b[0;1;91mERROR"), "{told:?}");
+}
+
+#[test]
+fn formats_that_need_the_whole_document_still_get_it_from_a_pipe() {
+    // Markdown cannot be shown a line at a time; stdin must still deliver all of it.
+    let (out, _, code) = run_stdin(&["--color", "never"], "# Title\n\nbody **bold**\n");
+    assert_eq!(code, 0);
+    assert!(out.contains("# Title") && out.contains("bold"), "{out}");
+}

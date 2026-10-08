@@ -4,7 +4,8 @@
 //! only on this one; backends live in crates that cannot see readers. Cargo's dependency
 //! graph is what keeps that separation from eroding.
 
-use crate::{Detection, Events, FormatId, Line, Result, Source};
+use crate::stream::LineStream;
+use crate::{Detection, Error, Events, FormatId, Line, Result, Source};
 
 /// Turns bytes into the internal model. This is what the original design called a
 /// "Renderer": it produces the document, it does not paint it.
@@ -17,6 +18,27 @@ pub trait DocumentReader: Send + Sync {
 
     fn capabilities(&self) -> ReaderCaps {
         ReaderCaps::default()
+    }
+
+    /// Whether this reader can read an input line by line as it arrives, without waiting for
+    /// its end. True for formats whose lines stand alone — plain text, logs — and false (the
+    /// default) for anything that needs the whole document, which is then read to the end first.
+    fn streams_input(&self) -> bool {
+        false
+    }
+
+    /// Reads an input that is still arriving. Only called when [`streams_input`] says it can.
+    ///
+    /// [`streams_input`]: DocumentReader::streams_input
+    ///
+    /// The events own what they carry, so they can stand wherever events borrowing from a
+    /// source can: the lifetime is the caller's to choose.
+    fn read_stream<'a>(&self, stream: LineStream, ctx: &ReadContext) -> Result<Events<'a>> {
+        let _ = (stream, ctx);
+        Err(Error::Unsupported(format!(
+            "the {} reader cannot read from a stream",
+            self.id()
+        )))
     }
 }
 

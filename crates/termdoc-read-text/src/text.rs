@@ -5,6 +5,8 @@
 //! pages rather than two gigabytes, which is the yardstick for whether this behaves like a
 //! Unix utility.
 
+use termdoc_core::highlight::{HighlightEvents, Piece};
+use termdoc_core::stream::LineStream;
 use termdoc_core::{
     Diagnostic, DocumentReader, Event, Events, FormatId, Metadata, ReadContext, ReaderCaps, Result,
     Source, Span, Spanned, Tag, TagKind,
@@ -44,6 +46,19 @@ impl DocumentReader for TextReader {
         }
     }
 
+    fn streams_input(&self) -> bool {
+        true
+    }
+
+    fn read_stream<'a>(&self, stream: LineStream, _ctx: &ReadContext) -> Result<Events<'a>> {
+        Ok(Box::new(HighlightEvents::from_stream(
+            stream,
+            self.format,
+            (),
+            lex_plain,
+        )))
+    }
+
     fn read<'a>(&self, src: &'a Source, _ctx: &ReadContext) -> Result<Events<'a>> {
         Ok(Box::new(TextEvents {
             src,
@@ -56,6 +71,11 @@ impl DocumentReader for TextReader {
             pending: None,
         }))
     }
+}
+
+/// A line with nothing coloured in it: what a stream of plain text is, one `Text` per line.
+pub(crate) fn lex_plain(line: &str, _state: &mut ()) -> Vec<Piece> {
+    vec![(0..line.len(), None)]
 }
 
 #[derive(Debug, PartialEq)]

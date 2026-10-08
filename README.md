@@ -49,6 +49,7 @@ termdoc config.yaml               # comments kept, keys and values coloured
 termdoc Cargo.toml                # same for TOML: tables, arrays, multi-line strings
 termdoc feed.xml                  # tags, attributes, comments and CDATA told apart
 termdoc data.csv                  # a table: aligned, wrapped, numbers right-aligned
+kubectl logs -f pod | termdoc     # a live stream: shown as it arrives, coloured by level
 termdoc --delimiter ';' data.csv  # when the delimiter cannot be guessed
 termdoc src/main.rs               # syntax-highlighted; so are fenced blocks in Markdown
 termdoc --explain odd.dat         # why it chose that format, then exit
@@ -174,9 +175,8 @@ numbered references. With colour off, not one escape byte is emitted.
 ## Roadmap
 
 **Now** — Markdown · plain text · logs · JSON · YAML · TOML · XML · CSV · source code
-**Next** — a dedicated log reader
-**Then** — the interactive pager: scrolling, search, table-of-contents navigation
-**Later** — HTML · PDF · DOCX · ODT · EPUB · images, then plugins
+**Next** — the interactive pager: scrolling, search, table-of-contents navigation, following a file as it grows
+**Then** — HTML · PDF · DOCX · ODT · EPUB · images, then plugins
 
 Milestones, with their reasoning and acceptance criteria, are in
 [`docs/DESIGN.md`](docs/DESIGN.md) §11. Current state and what is being worked on
@@ -188,9 +188,9 @@ next: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Status
 
-**v0.1.0 · M0 complete, M1 in progress.**
+**v0.1.0 · M0 and M1 complete.**
 
-Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code. In progress: the dedicated log reader, then
+Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code. Next: the interactive pager, then
 richer formats. The API of the library crates is **unstable before 1.0** — they
 are published so the binary can be, not because anything should be built on them
 yet. `1.0` is gated on freezing the document model and the plugin protocol.

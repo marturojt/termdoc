@@ -155,6 +155,9 @@ snapshot_matrix!(code_rust, "code.rs", [40usize, 100]);
 // Fenced blocks in Markdown: three languages that are highlighted, and three kinds of block
 // that must keep the theme's flat code colour (unknown language, no language, `text`).
 snapshot_matrix!(code_fences, "code.md", [60usize]);
+// Every shape of timestamp, every level, logfmt pairs, a stack trace and a line that merely
+// *mentions* an error. The plain rung must be the file, byte for byte.
+snapshot_matrix!(app_log, "app.log", [60usize, 110]);
 
 /// Degrading changes the appearance, never the content.
 ///

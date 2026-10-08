@@ -341,31 +341,15 @@ fn sniff_log(text: &str) -> Option<Detection> {
     None
 }
 
-/// A timestamp at the start of a line, without pulling in a regex engine.
+/// Whether a line starts the way a log line does.
 ///
-/// Recognizes the shapes that actually turn up: ISO-8601 (`2026-08-10T12:00:00`), a bare
-/// clock (`12:00:00`), and syslog (`Aug 10 12:00:00`).
+/// The strict shapes — ISO-8601, a clock, syslog — come from `termdoc_core::timestamp`, the same
+/// parser the log reader colours with, so that "detected as a log" and "highlighted as a log"
+/// cannot disagree. What is added here is looser on purpose, because detection only needs to
+/// count lines that *begin* like log lines: a month name and a day, and a bracketed prefix.
 fn starts_with_timestamp(line: &str) -> bool {
-    let b = line.as_bytes();
-
-    // `2026-08-10`
-    if b.len() >= 10
-        && b[0..4].iter().all(u8::is_ascii_digit)
-        && b[4] == b'-'
-        && b[5..7].iter().all(u8::is_ascii_digit)
-        && b[7] == b'-'
-        && b[8..10].iter().all(u8::is_ascii_digit)
-    {
-        return true;
-    }
-
-    // `12:00:00`
-    if b.len() >= 8
-        && b[0..2].iter().all(u8::is_ascii_digit)
-        && b[2] == b':'
-        && b[3..5].iter().all(u8::is_ascii_digit)
-        && b[5] == b':'
-        && b[6..8].iter().all(u8::is_ascii_digit)
+    // Indented lines are continuations (a stack trace), not the start of a record.
+    if !line.starts_with([' ', '\t']) && termdoc_core::timestamp::leading_timestamp(line).is_some()
     {
         return true;
     }

@@ -17,6 +17,8 @@ pub mod highlight;
 mod line;
 mod registry;
 mod source;
+pub mod stream;
+pub mod timestamp;
 mod traits;
 
 pub use error::{Error, Result, exit};

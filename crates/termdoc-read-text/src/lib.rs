@@ -7,9 +7,11 @@
 
 #![warn(missing_debug_implementations)]
 
+mod log;
 mod markdown;
 mod text;
 
+pub use log::LogReader;
 pub use markdown::MarkdownReader;
 pub use text::TextReader;
 
@@ -28,7 +30,7 @@ use termdoc_core::Registry;
 /// detection order depend on which readers happen to be compiled in.
 pub fn register(registry: &mut Registry) {
     registry.register_reader(Arc::new(TextReader::plain()));
-    registry.register_reader(Arc::new(TextReader::log()));
+    registry.register_reader(Arc::new(LogReader::new()));
     registry.register_reader(Arc::new(MarkdownReader::new()));
 }
 

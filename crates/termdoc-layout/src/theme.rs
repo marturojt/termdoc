@@ -46,6 +46,12 @@ pub struct Theme {
     pub token_function: Style,
     pub token_operator: Style,
     pub token_constant: Style,
+    pub token_timestamp: Style,
+    pub token_level_trace: Style,
+    pub token_level_debug: Style,
+    pub token_level_info: Style,
+    pub token_level_warn: Style,
+    pub token_level_error: Style,
 }
 
 impl Default for Theme {
@@ -98,6 +104,14 @@ impl Default for Theme {
             // confetti, and what they carry is already in the keywords and names around them.
             token_operator: Style::PLAIN,
             token_constant: Style::fg(c(BrightMagenta)),
+            // A log is read down its levels, so those carry the colour; the time that precedes
+            // every line recedes.
+            token_timestamp: Style::fg(c(BrightBlack)),
+            token_level_trace: Style::fg(c(BrightBlack)).with_dim(),
+            token_level_debug: Style::fg(c(BrightBlack)),
+            token_level_info: Style::fg(c(BrightGreen)),
+            token_level_warn: Style::fg(c(BrightYellow)),
+            token_level_error: Style::fg(c(BrightRed)).with_bold(),
         }
     }
 }
@@ -142,6 +156,12 @@ impl Theme {
             token_function: Style::PLAIN,
             token_operator: Style::PLAIN,
             token_constant: Style::PLAIN,
+            token_timestamp: Style::PLAIN,
+            token_level_trace: Style::PLAIN,
+            token_level_debug: Style::PLAIN,
+            token_level_info: Style::PLAIN,
+            token_level_warn: Style::PLAIN,
+            token_level_error: Style::PLAIN,
         }
     }
 
@@ -163,6 +183,12 @@ impl Theme {
             TokenRole::Function => self.token_function,
             TokenRole::Operator => self.token_operator,
             TokenRole::Constant => self.token_constant,
+            TokenRole::Timestamp => self.token_timestamp,
+            TokenRole::LevelTrace => self.token_level_trace,
+            TokenRole::LevelDebug => self.token_level_debug,
+            TokenRole::LevelInfo => self.token_level_info,
+            TokenRole::LevelWarn => self.token_level_warn,
+            TokenRole::LevelError => self.token_level_error,
         }
     }
 

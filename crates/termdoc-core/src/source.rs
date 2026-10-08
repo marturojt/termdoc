@@ -90,11 +90,9 @@ impl Source {
 
     /// Reads stdin to completion.
     ///
-    /// KNOWN M0 LIMITATION: stdin is fully buffered. The M0 formats (plain text and
-    /// Markdown) gain nothing from incremental streaming —Markdown needs the whole input
-    /// anyway— and huge files have the file path, which *is* lazy. The incremental stdin
-    /// reader arrives with the log reader in M1, where `kubectl logs -f | termdoc` makes
-    /// it essential.
+    /// This waits for the end of the input. The command-line tool does not use it for stdin any
+    /// more: it goes through `StdinFeed`, which hands line-oriented formats their lines as they
+    /// arrive and falls back to this behaviour for the formats that need the whole document.
     pub fn from_stdin() -> Result<Self> {
         let mut buf = Vec::new();
         std::io::stdin().lock().read_to_end(&mut buf)?;
@@ -104,6 +102,17 @@ impl Source {
             text_cache: std::sync::OnceLock::new(),
             encoding: encoding_rs::UTF_8,
         })
+    }
+
+    /// Standard input that has already been read, in whole or in part. `StdinFeed` builds these:
+    /// a prefix for detection to look at, or everything for a reader that needs it all.
+    pub fn from_stdin_bytes(bytes: Vec<u8>) -> Self {
+        Source {
+            origin: Origin::Stdin,
+            data: Data::Owned(bytes),
+            text_cache: std::sync::OnceLock::new(),
+            encoding: encoding_rs::UTF_8,
+        }
     }
 
     pub fn from_bytes(name: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {

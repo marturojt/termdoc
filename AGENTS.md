@@ -13,8 +13,8 @@ It is not an editor, not a converter, and not an IDE.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
   already paid for. **Read it first if you are picking this up mid-stream.**
 
-Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML and XML readers landed;
-CSV, source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
+Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML, XML and CSV readers landed;
+source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
 
 Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
 [termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
@@ -28,7 +28,7 @@ Code, comments, test names and user-facing messages are all in **English**.
 ## Commands
 
 ```bash
-cargo test --workspace                          # 329 tests
+cargo test --workspace                          # 360 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc
@@ -200,6 +200,9 @@ the terminal width or a color inside a reader, the answer belongs in the layout 
   must keep the `\n` on every line it emits (`"one\n"`, still a borrowed slice) and may split a line
   into `Tag::Token` runs for colour. Emitting `Text("one")` with no terminator merges it into the
   next line. The layout trims `\n` and `\r\n` itself (DESIGN §2.2).
+- A reader cannot call `termdoc-detect`, so what detection knows reaches it through
+  `ReadContext` (today: `delimiter` for CSV, filled by `run.rs::csv_delimiter`). Add a field there
+  rather than a Cargo edge.
 - The layout **does not** merge adjacent segments of the same style: that would require
   concatenating strings and would lose the `Cow::Borrowed`. Avoiding redundant SGR is the backend's
   job — it tracks the current style as state.

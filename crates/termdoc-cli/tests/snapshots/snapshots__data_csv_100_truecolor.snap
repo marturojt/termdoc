@@ -1,0 +1,14 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;90m┌─────┬─────────────────────┬──────┬───────┬───────────────────────────────────────────────────────┐<ESC>[0m
+<ESC>[0;90m│<ESC>[0m  <ESC>[0;1mid<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mproduct<ESC>[0m             <ESC>[0;90m│<ESC>[0m  <ESC>[0;1mqty<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mprice<ESC>[0m <ESC>[0;90m│<ESC>[0m <ESC>[0;1mnotes<ESC>[0m                                                 <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m├─────┼─────────────────────┼──────┼───────┼───────────────────────────────────────────────────────┤<ESC>[0m
+<ESC>[0;90m│<ESC>[0m   1 <ESC>[0;90m│<ESC>[0m Hex bolt M8         <ESC>[0;90m│<ESC>[0m  120 <ESC>[0;90m│<ESC>[0m  0.35 <ESC>[0;90m│<ESC>[0m zinc plated, DIN 933                                  <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m   2 <ESC>[0;90m│<ESC>[0m Washer              <ESC>[0;90m│<ESC>[0m 2500 <ESC>[0;90m│<ESC>[0m  0.02 <ESC>[0;90m│<ESC>[0m                                                       <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m   3 <ESC>[0;90m│<ESC>[0m Anchor "Heavy" 12mm <ESC>[0;90m│<ESC>[0m   40 <ESC>[0;90m│<ESC>[0m   3.9 <ESC>[0;90m│<ESC>[0m ships in two boxes                                    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m   4 <ESC>[0;90m│<ESC>[0m Café — 日本語       <ESC>[0;90m│<ESC>[0m    7 <ESC>[0;90m│<ESC>[0m 12.50 <ESC>[0;90m│<ESC>[0m unicode sample                                        <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m   5 <ESC>[0;90m│<ESC>[0m Threaded rod 1m     <ESC>[0;90m│<ESC>[0m   15 <ESC>[0;90m│<ESC>[0m  4.75 <ESC>[0;90m│<ESC>[0m cut to length on request, price per piece, minimum    <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m│<ESC>[0m     <ESC>[0;90m│<ESC>[0m                     <ESC>[0;90m│<ESC>[0m      <ESC>[0;90m│<ESC>[0m       <ESC>[0;90m│<ESC>[0m order applies                                         <ESC>[0;90m│<ESC>[0m
+<ESC>[0;90m└─────┴─────────────────────┴──────┴───────┴───────────────────────────────────────────────────────┘<ESC>[0m

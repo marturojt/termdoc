@@ -37,13 +37,29 @@ pub fn build_registry() -> Registry {
 fn readable_as_text(format: FormatId) -> bool {
     matches!(
         format,
-        FormatId::Csv
-            | FormatId::Html
+        FormatId::Html
             | FormatId::SourceCode
             | FormatId::PlainText
             | FormatId::Log
             | FormatId::Markdown
     )
+}
+
+/// The delimiter of a CSV-like source: what detection finds in its prefix, else the extension
+/// (`.tsv` is tab-separated by definition), else a comma.
+///
+/// This lives here rather than in the reader because a reader sees `termdoc-core` and nothing
+/// else; `run.rs` is the one place that sees both detection and readers.
+fn csv_delimiter(src: &Source) -> u8 {
+    let sample = String::from_utf8_lossy(src.probe());
+    if let Some(found) = termdoc_detect::detect_delimiter(&sample) {
+        return found.delimiter;
+    }
+    if src.display_name().to_ascii_lowercase().ends_with(".tsv") {
+        b'\t'
+    } else {
+        b','
+    }
 }
 
 /// Resolves the reader, degrading to plain text when there is none yet.
@@ -204,6 +220,7 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
 
         let ctx = ReadContext {
             metadata_only: cli.meta,
+            delimiter: (format == FormatId::Csv).then(|| csv_delimiter(&src)),
             ..ReadContext::default()
         };
         let events = reader.read(&src, &ctx)?;

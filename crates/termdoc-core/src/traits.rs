@@ -43,6 +43,11 @@ pub struct ReadContext {
     pub encoding: Option<String>,
     /// Metadata only: lets the reader skip the body.
     pub metadata_only: bool,
+    /// The field delimiter of delimited text (CSV, TSV), as detection resolved it.
+    ///
+    /// A reader may not depend on `termdoc-detect`, so what detection knows reaches it here.
+    /// `None` means nobody knows, and the reader assumes a comma.
+    pub delimiter: Option<u8>,
 }
 
 /// Proposes a format based on the source's prefix.

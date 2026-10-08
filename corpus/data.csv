@@ -1,0 +1,7 @@
+id,product,qty,price,notes
+1,Hex bolt M8,120,0.35,"zinc plated, DIN 933"
+2,Washer,2500,0.02,
+3,"Anchor ""Heavy"" 12mm",40,3.9,"ships in
+two boxes"
+4,Café — 日本語,7,12.50,unicode sample
+5,Threaded rod 1m,15,4.75,"cut to length on request, price per piece, minimum order applies"

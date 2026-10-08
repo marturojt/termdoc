@@ -136,6 +136,10 @@ snapshot_matrix!(data_toml, "data.toml", [40usize, 80]);
 // A declaration, a doctype, a multi-line comment, CDATA and an attribute containing `>`:
 // the shapes that make a regex highlighter wrong.
 snapshot_matrix!(data_xml, "data.xml", [40usize, 80]);
+// A numeric column, a quoted cell holding a comma and one holding a newline, an empty cell and
+// a wide one: what the table's width allocation and alignment have to get right. The narrow
+// width is the one that falls to the TSV rung.
+snapshot_matrix!(data_csv, "data.csv", [30usize, 100]);
 
 /// Degrading changes the appearance, never the content.
 ///

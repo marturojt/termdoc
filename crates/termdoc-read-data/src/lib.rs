@@ -1,17 +1,18 @@
 //! Readers for structured data formats.
 //!
-//! The four formats in this crate look like one job and are not. Their parsers have opposite
+//! The five formats in this crate look like one job and are not. Their parsers have opposite
 //! properties, and pretending otherwise would mean either paying for streaming where it buys
 //! nothing or materialising where it cannot be afforded (docs/HANDOFF.md §6.1):
 //!
 //! | format | approach | why |
 //! |---|---|---|
+//! | CSV | stream records, bounded table | the layout needs the whole table for column widths; the ceiling is in cells |
 //! | JSON | materialise, with a size ceiling | `serde_json` builds a tree; the ceiling bounds it |
 //! | TOML | line-by-line highlighter | a parse tree has nowhere to keep the comments; see `toml.rs` |
 //! | XML | stream | `quick-xml` is a pull parser that loses nothing: it delimits, the text is shown as is |
 //! | YAML | line-by-line highlighter | a parser's events drop the comments; see `yaml.rs` |
 //!
-//! JSON, YAML, TOML and XML are implemented: every format in this crate.
+//! JSON, YAML, TOML, XML and CSV are implemented: every format in this crate.
 //!
 //! # Layering
 //!
@@ -22,12 +23,14 @@
 //! No detectors are registered: naming a format belongs to `termdoc-detect`, so that detection
 //! order does not depend on which readers a build happens to contain.
 
+mod csv;
 mod highlight;
 mod json;
 mod toml;
 mod xml;
 mod yaml;
 
+pub use csv::{CsvReader, MAX_TABLE_CELLS};
 pub use json::{JsonReader, MAX_MATERIALISED};
 pub use toml::TomlReader;
 pub use xml::XmlReader;
@@ -42,6 +45,7 @@ pub fn register(registry: &mut Registry) {
     registry.register_reader(Arc::new(YamlReader::new()));
     registry.register_reader(Arc::new(TomlReader::new()));
     registry.register_reader(Arc::new(XmlReader::new()));
+    registry.register_reader(Arc::new(CsvReader::new()));
 }
 
 #[cfg(test)]
@@ -75,6 +79,13 @@ mod tests {
         let mut r = Registry::new();
         register(&mut r);
         assert!(r.reader_for(FormatId::Xml).is_some());
+    }
+
+    #[test]
+    fn register_makes_csv_resolvable() {
+        let mut r = Registry::new();
+        register(&mut r);
+        assert!(r.reader_for(FormatId::Csv).is_some());
     }
 
     #[test]

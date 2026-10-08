@@ -533,7 +533,7 @@ Verified on crates.io on 2026-08-10 (stable version and 90-day downloads).
 | HTML | `lol_html` or `html5ever` | 3.0 / 0.39 | `lol_html` streams; `html5ever` is more faithful |
 | Data | `serde_json` (`toml` was vetted, unused: see ADR 7) | 1.0 | |
 | YAML | *(none — see the note below)* | — | A line-by-line highlighter; `yaml-rust2` was the plan |
-| CSV | `csv` | — | |
+| CSV | *(none — own RFC 4180 parser)* | — | Borrows from the source; the `csv` crate copies every field |
 | Spreadsheets | `calamine` | 0.36 | XLSX/ODS, for M5 |
 | PDF | `pdf_oxide` / `pdf-extract` | 0.3 / 0.12 | Swappable engine, see below |
 | Detection | `infer` + our own | 0.22 | |

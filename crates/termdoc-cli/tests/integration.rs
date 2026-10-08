@@ -665,3 +665,59 @@ fn a_broken_xml_warns_and_still_shows_everything() {
     assert!(stdout.contains("never closed"), "{stdout}");
     assert!(stderr.contains("not well-formed"), "{stderr}");
 }
+
+#[test]
+fn csv_is_a_table_and_its_delimiter_is_detected() {
+    let path = scratch("d.csv", b"name;qty\nbolt;3\nnut;15\nwasher;120\nscrew;7\n");
+    let (stdout, stderr, code) =
+        run(&["--color", "never", "--width", "60", path.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(stderr.is_empty(), "{stderr}");
+    assert!(stdout.contains('┌'), "a table, not text: {stdout}");
+    // The semicolon was a delimiter, not part of the content.
+    assert!(!stdout.contains(';'), "{stdout}");
+    // The numeric column is right-aligned: the shorter number is padded on its left.
+    assert!(
+        stdout
+            .lines()
+            .any(|l| l.contains("│   3 │") || l.contains("│   7 │")),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn a_tsv_extension_means_tabs_even_when_the_sample_is_too_small_to_tell() {
+    let path = scratch("d.tsv", b"a\tb\n1\t2\n");
+    let (stdout, _, code) = run(&["--color", "never", "--width", "60", path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(stdout.contains('┌'), "{stdout}");
+    assert!(!stdout.contains('\t'), "{stdout:?}");
+}
+
+#[test]
+fn the_tsv_rung_still_carries_every_cell() {
+    let path = scratch(
+        "w.csv",
+        b"alpha,beta,gamma\n1,2,3\n4,5,6\n7,8,9\n10,11,12\n",
+    );
+    let (stdout, _, code) = run(&["--color", "never", "--width", "6", path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    for cell in ["alpha", "gamma", "11", "12"] {
+        assert!(stdout.contains(cell), "{cell} lost: {stdout}");
+    }
+}
+
+#[test]
+fn a_csv_past_the_ceiling_still_shows_every_record() {
+    let mut data = String::from("id,v\n");
+    for i in 0..20_000 {
+        data.push_str(&format!("{i},x\n"));
+    }
+    let path = scratch("big.csv", data.as_bytes());
+    let (stdout, stderr, code) =
+        run(&["--color", "never", "--width", "40", path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert!(stderr.contains("more than"), "{stderr}");
+    // 12,500 is the ceiling for two columns; the last record is far beyond it.
+    assert!(stdout.contains("19999,x"), "the tail was lost");
+}

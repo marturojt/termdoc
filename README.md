@@ -14,7 +14,7 @@
 A fast, terminal-native document viewer. One command for whatever document is in
 front of you, instead of a different tool for every file type.
 
-**Markdown, plain text, logs, JSON, YAML, TOML and XML render today.** Many more formats are already
+**Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV render today.** Many more formats are already
 recognised, and their dedicated readers are being added one milestone at a time —
 [what works right now](#supported-formats) is spelled out below, precisely.
 
@@ -48,6 +48,7 @@ termdoc minified.json             # parsed and re-indented into a readable tree
 termdoc config.yaml               # comments kept, keys and values coloured
 termdoc Cargo.toml                # same for TOML: tables, arrays, multi-line strings
 termdoc feed.xml                  # tags, attributes, comments and CDATA told apart
+termdoc data.csv                  # a table: aligned, wrapped, numbers right-aligned
 termdoc --explain odd.dat         # why it chose that format, then exit
 termdoc --formats                 # what this build can actually read
 ```
@@ -103,7 +104,7 @@ doing it.
 | TOML | ✅ | ✅ |
 | XML | ✅ | ✅ |
 | HTML | ✅ | 🚧 |
-| CSV | ✅ | 🚧 |
+| CSV | ✅ | ✅ |
 | Source code | ✅ | 🚧 |
 | PDF | ✅ | ⛔ |
 | DOCX · ODT | ✅ | ⛔ |
@@ -171,7 +172,7 @@ numbered references. With colour off, not one escape byte is emitted.
 ## Roadmap
 
 **Now** — Markdown · plain text · logs · JSON · YAML · TOML · XML
-**Next** — CSV · syntax-highlighted source
+**Next** — syntax-highlighted source
 **Then** — the interactive pager: scrolling, search, table-of-contents navigation
 **Later** — HTML · PDF · DOCX · ODT · EPUB · images, then plugins
 
@@ -187,7 +188,7 @@ next: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 **v0.1.0 · M0 complete, M1 in progress.**
 
-Stable today: Markdown, plain text, logs, JSON, YAML, TOML and XML. In progress: the rest of the structured data formats and
+Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV. In progress: syntax-highlighted source code and the dedicated log reader, then
 richer formats. The API of the library crates is **unstable before 1.0** — they
 are published so the binary can be, not because anything should be built on them
 yet. `1.0` is gated on freezing the document model and the plugin protocol.

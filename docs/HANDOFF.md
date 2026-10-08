@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  ███████████░░░░░░░░░  ~55%       detection, encoding, JSON, YAML, TOML, XML landed; readers pending
+M1  █████████████░░░░░░░  ~65%       detection, encoding, JSON, YAML, TOML, XML, CSV landed; readers pending
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,500 lines across 8 crates |
-| Tests | **329**, all green |
+| Tests | **360**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -46,7 +46,7 @@ termdoc --encoding latin1 x.txt
 termdoc --ascii --width 40 t.md
 ```
 
-Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML and XML**. Detection recognizes far more (HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV**. Detection recognizes far more (HTML, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
 without its own reader falls back to plain text with a warning on stderr. That fallback is
 deliberate, not an oversight — see §4.
 
@@ -57,7 +57,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 329 passing
+cargo test --workspace                                   # expect 360 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -107,14 +107,23 @@ Points worth deciding deliberately rather than by default:
   genuinely streams, and `ReaderCaps.streaming` is `true` there. If you ever want YAML
   *validation*, `yaml-rust2` is the answer, behind a size ceiling like JSON's.
 
-### M1-2. CSV as a table
+### M1-2. ~~CSV as a table~~  ← done (2026-10-08)
 
-Emit `Tag::Table` and reuse the layout's width allocation — the interesting work is already done and
-already tested. `termdoc_detect::detect_delimiter` gives you the delimiter and column count.
+`crates/termdoc-read-data/src/csv.rs`. Read its module header: it records the parser's leniencies,
+why the first record is always the header, and the measurement behind the ceiling.
 
-**This one can stream** (row by row), and it is worth doing so: a million-row CSV is a realistic
-input. The catch is that `TableBuilder` buffers the whole table to allocate widths, so a huge CSV
-needs either a row cap with an honest warning or a two-pass approach. Decide and document it.
+Two things are not obvious from the code:
+
+- **The delimiter arrives through `ReadContext::delimiter`.** A reader cannot call
+  `termdoc-detect` (readers see `termdoc-core` only), so `run.rs::csv_delimiter` resolves it —
+  detection on the prefix, else `.tsv` means tab, else comma — and hands it over. Any future reader
+  that needs something detection knows should be given it the same way, not by a new edge.
+- **The ceiling is in cells, not rows** (`MAX_TABLE_CELLS`, 25,000, about 24 MB): the layout's table
+  builder costs ~0.9 KB per cell. Past it the table closes, a warning says so, and the remaining
+  records follow as verbatim preformatted text, so nothing is lost and `| head` stays lazy.
+
+Left for later, deliberately: a `--delimiter` flag, a `--no-header` flag, and treating a numeric
+first row as data. None is needed to read a file; all are cheap if someone asks.
 
 ### M1-3. Syntax highlighting
 

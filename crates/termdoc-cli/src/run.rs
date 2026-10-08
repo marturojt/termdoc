@@ -37,8 +37,7 @@ pub fn build_registry() -> Registry {
 fn readable_as_text(format: FormatId) -> bool {
     matches!(
         format,
-        FormatId::Xml
-            | FormatId::Csv
+        FormatId::Csv
             | FormatId::Html
             | FormatId::SourceCode
             | FormatId::PlainText

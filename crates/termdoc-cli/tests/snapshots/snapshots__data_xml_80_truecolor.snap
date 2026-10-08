@@ -1,0 +1,18 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;90m<?<ESC>[0;1;94mxml<ESC>[0m <ESC>[0;36mversion<ESC>[0;90m=<ESC>[0;32m"1.0"<ESC>[0m <ESC>[0;36mencoding<ESC>[0;90m=<ESC>[0;32m"UTF-8"<ESC>[0;90m?><ESC>[0m
+<ESC>[0;36m<!DOCTYPE manifest SYSTEM "manifest.dtd"><ESC>[0m
+<ESC>[0;3;90m<!-- termdoc's own manifest, as an XML document.<ESC>[0m
+<ESC>[0;3;90m     Comments may span lines; so may tags. --><ESC>[0m
+<ESC>[0;90m<<ESC>[0;1;94mmanifest<ESC>[0m <ESC>[0;36mxmlns:t<ESC>[0;90m=<ESC>[0;32m"urn:termdoc"<ESC>[0m <ESC>[0;36mversion<ESC>[0;90m=<ESC>[0;32m"0.1.0"<ESC>[0m <ESC>[0;36mstreaming<ESC>[0;90m=<ESC>[0;32m"true"<ESC>[0;90m><ESC>[0m
+  <ESC>[0;90m<<ESC>[0;1;94mt:format<ESC>[0m <ESC>[0;36mid<ESC>[0;90m=<ESC>[0;32m"xml"<ESC>[0m <ESC>[0;36mrenders<ESC>[0;90m=<ESC>[0;32m'yes'<ESC>[0;90m><ESC>[0mTom &amp; Jerry &lt;3 café — 日本語<ESC>[0;90m</<ESC>[0;1;94mt:format<ESC>[0m
+<ESC>[0;90m><ESC>[0m
+  <ESC>[0;90m<<ESC>[0;1;94mformat<ESC>[0m <ESC>[0;36mid<ESC>[0;90m=<ESC>[0;32m"toml"<ESC>[0m
+          <ESC>[0;36mrenders<ESC>[0;90m=<ESC>[0;32m"yes"<ESC>[0m
+          <ESC>[0;36mnote<ESC>[0;90m=<ESC>[0;32m"a > b"<ESC>[0;90m/><ESC>[0m
+  <ESC>[0;90m<<ESC>[0;1;94mempty<ESC>[0m <ESC>[0;90m/><ESC>[0m
+  <ESC>[0;90m<<ESC>[0;1;94mscript<ESC>[0;90m><![CDATA[<ESC>[0;32m if (a < b && b > c) { run(); } <ESC>[0;90m]]></<ESC>[0;1;94mscript<ESC>[0;90m><ESC>[0m
+  <ESC>[0;90m<?<ESC>[0;1;94mrender<ESC>[0m <ESC>[0;36mmode<ESC>[0;90m=<ESC>[0;32m"fast"<ESC>[0;90m?><ESC>[0m
+<ESC>[0;90m</<ESC>[0;1;94mmanifest<ESC>[0;90m><ESC>[0m

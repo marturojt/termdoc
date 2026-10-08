@@ -17,3 +17,4 @@ categories = ["text-processing", "parsing"]
 [dependencies]
 termdoc-core.workspace = true
 serde_json.workspace = true
+quick-xml.workspace = true

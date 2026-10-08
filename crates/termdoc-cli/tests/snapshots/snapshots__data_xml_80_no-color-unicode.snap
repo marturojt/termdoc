@@ -1,0 +1,18 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE manifest SYSTEM "manifest.dtd">
+<!-- termdoc's own manifest, as an XML document.
+     Comments may span lines; so may tags. -->
+<manifest xmlns:t="urn:termdoc" version="0.1.0" streaming="true">
+  <t:format id="xml" renders='yes'>Tom &amp; Jerry &lt;3 café — 日本語</t:format
+>
+  <format id="toml"
+          renders="yes"
+          note="a > b"/>
+  <empty />
+  <script><![CDATA[ if (a < b && b > c) { run(); } ]]></script>
+  <?render mode="fast"?>
+</manifest>

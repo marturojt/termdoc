@@ -528,7 +528,7 @@ Verified on crates.io on 2026-08-10 (stable version and 90-day downloads).
 | Syntax | `syntect` + `two-face` | 5.3 / 0.5 | `two-face` bundles `bat`'s assets |
 | TUI | `ratatui` + `crossterm` | 0.30 / 0.29 | `crossterm` covers Windows |
 | Images | `ratatui-image` | 11.0 | Kitty + iTerm2 + Sixel + half-blocks. **Preferred over `viuer`**, which "dumps" the image and does not cohabit with a TUI |
-| XML | `quick-xml` | 0.41 | Streaming; the basis of DOCX/ODT/EPUB/XLSX |
+| XML | `quick-xml` | 0.42 | Streaming; the basis of DOCX/ODT/EPUB/XLSX |
 | ZIP | `zip` | 8.6 | |
 | HTML | `lol_html` or `html5ever` | 3.0 / 0.39 | `lol_html` streams; `html5ever` is more faithful |
 | Data | `serde_json` (`toml` was vetted, unused: see ADR 7) | 1.0 | |

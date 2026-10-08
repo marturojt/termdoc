@@ -133,6 +133,9 @@ snapshot_matrix!(data_yaml, "data.yaml", [40usize, 80]);
 // Table headers, a multi-line array and a multi-line string: the shapes that need state
 // carried from one line to the next.
 snapshot_matrix!(data_toml, "data.toml", [40usize, 80]);
+// A declaration, a doctype, a multi-line comment, CDATA and an attribute containing `>`:
+// the shapes that make a regex highlighter wrong.
+snapshot_matrix!(data_xml, "data.xml", [40usize, 80]);
 
 /// Degrading changes the appearance, never the content.
 ///

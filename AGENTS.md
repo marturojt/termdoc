@@ -13,8 +13,8 @@ It is not an editor, not a converter, and not an IDE.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
   already paid for. **Read it first if you are picking this up mid-stream.**
 
-Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML and TOML readers landed;
-XML, CSV, source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
+Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML and XML readers landed;
+CSV, source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
 
 Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
 [termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
@@ -28,7 +28,7 @@ Code, comments, test names and user-facing messages are all in **English**.
 ## Commands
 
 ```bash
-cargo test --workspace                          # 309 tests
+cargo test --workspace                          # 329 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc

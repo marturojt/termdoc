@@ -393,21 +393,24 @@ fn an_unknown_encoding_is_refused_with_a_hint() {
 #[test]
 fn a_format_without_a_reader_still_shows_its_content() {
     // Mid-roadmap, detection names more formats than there are readers. Refusing to display a
-    // .xml file merely because its reader has not landed would be worse than showing it as
+    // .html file merely because its reader has not landed would be worse than showing it as
     // text, and it contradicts the point of a universal viewer.
     //
-    // This used to use JSON, then YAML and TOML, which gained readers in M1. Whichever format stands in here has
+    // This used to use JSON, then YAML, TOML and XML, which gained readers in M1. Whichever format stands in here has
     // to be one with no reader yet, so this test moves down the roadmap as readers land, and
     // it disappears entirely once every detected text format has one.
-    let path = scratch("a.xml", b"<?xml version=\"1.0\"?>\n<a>value</a>\n");
+    let path = scratch(
+        "a.html",
+        b"<!DOCTYPE html>\n<html><body>value</body></html>\n",
+    );
     let (stdout, stderr, code) = run(&[path.to_str().unwrap()]);
     assert_eq!(code, 0, "it must not be an error");
     assert!(
-        stdout.contains("<a>value</a>"),
+        stdout.contains("<body>value</body>"),
         "the content must be there: {stdout}"
     );
     assert!(
-        stderr.contains("no xml reader yet"),
+        stderr.contains("no html reader yet"),
         "and it must explain why it looks plain: {stderr}"
     );
     // The message must be one clean line, with no source-indentation leaking into it.
@@ -419,7 +422,7 @@ fn a_format_without_a_reader_still_shows_its_content() {
 
 #[test]
 fn strict_turns_the_fallback_warning_into_a_failure() {
-    let path = scratch("a.xml", b"<?xml version=\"1.0\"?>\n<a>1</a>\n");
+    let path = scratch("a.html", b"<!DOCTYPE html>\n<html><body>1</body></html>\n");
     let (_, _, code) = run(&["--strict", path.to_str().unwrap()]);
     assert_eq!(code, 1, "--strict promotes warnings to errors");
 }
@@ -638,4 +641,27 @@ fn toml_keeps_its_comments_and_colors_its_keys() {
     let (colored, stderr, _) = run(&["--color", "always", p]);
     assert!(stderr.is_empty(), "{stderr}");
     assert!(colored.contains('\x1b'), "{colored:?}");
+}
+
+#[test]
+fn xml_keeps_its_comments_and_colors_its_tags() {
+    let src = b"<?xml version=\"1.0\"?>\n<!-- note -->\n<a id=\"1\">x &amp; y</a>\n";
+    let path = scratch("c.xml", src);
+    let p = path.to_str().unwrap();
+    let (plain, _, code) = run(&["--color", "never", p]);
+    assert_eq!(code, 0);
+    assert_eq!(plain.as_bytes(), src);
+    let (colored, stderr, _) = run(&["--color", "always", p]);
+    assert!(stderr.is_empty(), "{stderr}");
+    assert!(colored.contains('\x1b'), "{colored:?}");
+}
+
+#[test]
+fn a_broken_xml_warns_and_still_shows_everything() {
+    let src = b"<a>ok</a>\n<b attr=\"never closed";
+    let path = scratch("b.xml", src);
+    let (stdout, stderr, code) = run(&["--color", "never", path.to_str().unwrap()]);
+    assert_eq!(code, 0, "partial rendering is not an error");
+    assert!(stdout.contains("never closed"), "{stdout}");
+    assert!(stderr.contains("not well-formed"), "{stderr}");
 }

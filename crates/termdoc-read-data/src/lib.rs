@@ -8,10 +8,10 @@
 //! |---|---|---|
 //! | JSON | materialise, with a size ceiling | `serde_json` builds a tree; the ceiling bounds it |
 //! | TOML | line-by-line highlighter | a parse tree has nowhere to keep the comments; see `toml.rs` |
-//! | XML | stream | `quick-xml` is already a pull parser that borrows |
+//! | XML | stream | `quick-xml` is a pull parser that loses nothing: it delimits, the text is shown as is |
 //! | YAML | line-by-line highlighter | a parser's events drop the comments; see `yaml.rs` |
 //!
-//! JSON, YAML and TOML are implemented so far.
+//! JSON, YAML, TOML and XML are implemented: every format in this crate.
 //!
 //! # Layering
 //!
@@ -25,10 +25,12 @@
 mod highlight;
 mod json;
 mod toml;
+mod xml;
 mod yaml;
 
 pub use json::{JsonReader, MAX_MATERIALISED};
 pub use toml::TomlReader;
+pub use xml::XmlReader;
 pub use yaml::YamlReader;
 
 use std::sync::Arc;
@@ -39,6 +41,7 @@ pub fn register(registry: &mut Registry) {
     registry.register_reader(Arc::new(JsonReader::new()));
     registry.register_reader(Arc::new(YamlReader::new()));
     registry.register_reader(Arc::new(TomlReader::new()));
+    registry.register_reader(Arc::new(XmlReader::new()));
 }
 
 #[cfg(test)]
@@ -65,6 +68,13 @@ mod tests {
         let mut r = Registry::new();
         register(&mut r);
         assert!(r.reader_for(FormatId::Toml).is_some());
+    }
+
+    #[test]
+    fn register_makes_xml_resolvable() {
+        let mut r = Registry::new();
+        register(&mut r);
+        assert!(r.reader_for(FormatId::Xml).is_some());
     }
 
     #[test]

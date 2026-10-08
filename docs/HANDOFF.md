@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  █████████░░░░░░░░░░░  ~45%       detection, encoding, JSON, YAML, TOML landed; readers pending
+M1  ███████████░░░░░░░░░  ~55%       detection, encoding, JSON, YAML, TOML, XML landed; readers pending
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -26,7 +26,7 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~10,500 lines across 8 crates |
-| Tests | **309**, all green |
+| Tests | **329**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -46,7 +46,7 @@ termdoc --encoding latin1 x.txt
 termdoc --ascii --width 40 t.md
 ```
 
-Readers exist for **Markdown, plain text, logs, JSON, YAML and TOML**. Detection recognizes far more (XML, HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML and XML**. Detection recognizes far more (HTML, CSV, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
 without its own reader falls back to plain text with a warning on stderr. That fallback is
 deliberate, not an oversight — see §4.
 
@@ -57,7 +57,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 309 passing
+cargo test --workspace                                   # expect 329 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -74,10 +74,13 @@ suite has no known flakiness.
 
 The remaining M1 work, in the order I would keep.
 
-### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, ~~TOML~~, XML  ← XML is the last one
+### M1-1. Structured data readers — ~~JSON~~, ~~YAML~~, ~~TOML~~, ~~XML~~  ← done
 
 `crates/termdoc-read-data/` **exists** and carries the JSON reader. Remaining dependencies, already
-vetted: `quick-xml` 0.41. (`yaml-rust2` and `toml` were vetted too and ended up unused.)
+in use: `serde_json` and `quick-xml` 0.42. (`yaml-rust2` and `toml` were vetted too and ended up unused.)
+
+**XML is not re-indented.** A one-line SOAP response stays one line, because XML whitespace can be
+content. If that proves to be the wrong default, a pretty-print mode is a follow-up, not a bug.
 
 **Read `json.rs`'s module header before adding the next one.** It records what the measurement
 caught: that a ceiling derived from the parser alone is four times too generous because the
@@ -187,16 +190,12 @@ These cost real debugging time. They are all fixed; this list exists so they are
 
 ## 6. Open questions for the owner
 
-1. **Streaming versus simplicity for the data readers.** Resolved in shape, not yet in code: it is
-   **four decisions, not one**. XML streams because `quick-xml` is already a pull parser that
-   borrows; YAML and TOML are
-   highlighted line by line (no parser, to keep the comments; they share `highlight.rs`); and **only JSON is a real dilemma**. For JSON the plan is
-   `serde_json` plus a size guard — under the threshold it materializes and pretty-prints, over it
-   the reader emits `Tag::Preformatted` and an `Event::Diagnostic` saying why. The guard lives in
-   the reader, not in `run.rs`, because `pick_reader` decides by *format* and has no business
-   knowing about byte counts. **Derive the threshold from a measurement** with
-   `scripts/perf-gate.py`, not from a guess. Note also that YAML aliases (`*ref`) cannot be
-   resolved by a pure stream: render the reference as written rather than expanding it.
+1. **Streaming versus simplicity for the data readers.** Settled, and implemented — it was
+   four decisions, not one. JSON materializes under a measured size ceiling (`json.rs`). YAML and
+   TOML are highlighted line by line with no parser, because a parse tree has nowhere to keep the
+   comments (they share `highlight.rs`). XML streams through `quick-xml`, used only to delimit
+   events while the original bytes are shown. All four keep the text as it is on disk, except
+   JSON, which is re-indented on purpose.
 2. **Publishing to crates.io.** Settled: all seven crates are live at `0.1.0`. See §10.
 
 ---

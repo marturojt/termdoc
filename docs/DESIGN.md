@@ -686,8 +686,8 @@ python3 scripts/perf-gate.py                # startup, memory, lazy output
 
 ## 14. Publishing
 
-**Done: all seven crates are live on crates.io at `0.1.0` since 2026-08-10**, and the name that
-matters is claimed by the binary. What follows is why it is shaped this way.
+**Done: all nine crates are live on crates.io at `0.2.0` (seven since `0.1.0`, 2026-08-10)**, and the
+name that matters is claimed by the binary. What follows is why it is shaped this way.
 
 ### The package is `termdoc`, the directory is `crates/termdoc-cli/`
 
@@ -725,6 +725,11 @@ taken forever. Run `cargo publish --workspace --dry-run` and read the packaged f
 
 `cargo install termdoc` works today and is the baseline. Everything below exists because it
 requires a Rust toolchain, which most people who would use a document viewer do not have.
+
+> **Status (2026-10-08):** prebuilt binaries are attached to every GitHub release, and
+> `brew install marturojt/tap/termdoc` works — the tap's CI installs and audits the formula on macOS
+> and Linux. Still ahead: AUR, Scoop, static musl binaries, and `homebrew-core`. The release process
+> and its traps are in `docs/HANDOFF.md` §10.
 
 ### Homebrew: an own tap first, `homebrew-core` later
 

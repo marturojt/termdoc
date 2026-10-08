@@ -23,7 +23,8 @@ It is not an editor. It is not a converter. It is not an IDE.
 ## Install
 
 ```bash
-cargo install termdoc
+brew install marturojt/tap/termdoc   # macOS and Linux: the prebuilt release binary
+cargo install termdoc                # from source, with a Rust toolchain
 ```
 
 Or take a **prebuilt binary** from the
@@ -31,13 +32,15 @@ Or take a **prebuilt binary** from the
 Linux x86_64 and aarch64, Windows x86_64, with `SHA256SUMS.txt` covering every archive:
 
 ```bash
-tar -xzf termdoc-v0.1.0-universal-apple-darwin.tar.gz
+tar -xzf termdoc-v0.2.0-universal-apple-darwin.tar.gz
 ./termdoc README.md
 ```
 
 Installing from source requires Rust 1.85+ ([rustup.rs](https://rustup.rs)). All three
 platforms are covered by CI, and every released binary is executed by CI before the release
-is drafted. A Homebrew formula is on the [roadmap](#roadmap).
+is drafted. The Homebrew formula installs that same binary, and the tap's own CI installs and
+audits it on macOS and Linux (x86_64 and arm) every time it changes. What changed in each
+release is in the [changelog](CHANGELOG.md).
 
 ## Quick start
 
@@ -188,7 +191,7 @@ next: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Status
 
-**v0.1.0 · M0 and M1 complete.**
+**v0.2.0 · M0 and M1 complete.**
 
 Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code. Next: the interactive pager, then
 richer formats. The API of the library crates is **unstable before 1.0** — they

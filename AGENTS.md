@@ -17,7 +17,8 @@ Status: **M0 and M1 complete** — detection, encoding, and readers for Markdown
 JSON, YAML, TOML, XML, CSV and source code, with stdin read as it arrives. **M2, the pager, is next.**
 Roadmap in `docs/DESIGN.md` §11.
 
-Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
+Published: all nine crates are on crates.io at `0.2.0` (`cargo install termdoc`), the release binaries
+are on GitHub, `brew install marturojt/tap/termdoc` works, and the site is
 [termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
 repository. **`termdoc --formats` is the authoritative answer** to what this build can read; the
 README's table must be kept honest against it.

@@ -23,7 +23,9 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 |---|---|
 | Repo | `git@github.com:marturojt/termdoc.git`, branch `main` |
 | Commits | 15, history is clean and in English |
-| crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
+| crates.io | all 9 crates live at `0.2.0`; `cargo install termdoc` — see §10 |
+| Release | [v0.2.0](https://github.com/marturojt/termdoc/releases/tag/v0.2.0): macOS universal, Linux x86_64 + aarch64, Windows, `SHA256SUMS.txt` |
+| Homebrew | `brew install marturojt/tap/termdoc`; the tap's CI installs and audits it on macOS and Linux — see §11 B1 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
 | Code | ~14,000 lines across 9 crates |
 | Tests | **449**, all green |
@@ -311,10 +313,11 @@ the reason gets written down.
 
 ---
 
-## 10. crates.io: published at 0.1.0
+## 10. crates.io: published at 0.2.0
 
-All seven crates are live as of 2026-08-10. Every candidate name was free when checked, **`termdoc`**
-included, so `cargo install termdoc` works.
+All nine crates are live at `0.2.0` (2026-10-08); the first release, `0.1.0`, put seven there on
+2026-08-10. Every candidate name was free when checked, **`termdoc`** included, so
+`cargo install termdoc` works, and was verified by installing from the registry into a scratch root.
 
 What was done:
 
@@ -322,31 +325,49 @@ What was done:
   the project's own name is not left for someone else to take. The **directory** keeps its `-cli`
   suffix — it names the layer, and `tests/layering.rs` indexes by directory, so the test was
   untouched. Reasoning in DESIGN.md §14.
-- `keywords`, `categories`, `homepage` and `readme` added to every manifest.
-- A README per crate. Each library's says plainly that **the API is unstable before 1.0**, which is
-  the honest counterpart to publishing while §11 still gates 1.0 on freezing the document model and
-  the plugin protocol. The libraries ship because a binary cannot be published with unpublished
-  path dependencies — not because anyone should build on them yet.
-- `cargo publish --workspace` derives the order itself: `core` and `term`, then `backend`, `detect`,
-  `layout`, `read-text`, and `termdoc` last.
+- `keywords`, `categories`, `homepage` and `readme` added to every manifest. Crate descriptions are
+  what crates.io shows, and went stale once (they still said four data formats); check them when
+  a reader is added.
+- `0.2.0` added two crates, `termdoc-read-data` and `termdoc-read-code`. Two new crates fit the
+  burst crates.io allows, so a single `cargo publish --workspace` did it; see the trap below for when
+  it will not.
 
-### The trap for the next release
+### Cutting a release, in order
 
-**crates.io rate-limits *new* crates: a burst of five, then roughly one per ten minutes.** A single
-`cargo publish --workspace` therefore cannot create seven crates in one go. It uploaded five, then
-failed with `429` on the sixth, leaving the flagship name unclaimed — the two stragglers went up on
-a retry loop over the following twenty minutes.
+This is what 0.2.0 did, in the order that keeps every step undoable for as long as possible:
 
-This only bites when *creating* crates. Publishing new **versions** of crates that already exist has
-a far looser limit, so future releases are a single `cargo publish --workspace`. But when M1's
-`termdoc-read-data` lands, or M2's `termdoc-tui`, that new crate hits the new-crate limit again:
-publish it on its own first, then release the rest.
+1. Bump `version` in the workspace manifest **and** in `[workspace.dependencies]` (the `path` + `version`
+   pairs), update `CHANGELOG.md`, and make sure each crate's `description` is still true.
+2. `cargo test --workspace`, `clippy`, `fmt --check`, `perf-gate.py`, then
+   `cargo publish --workspace --dry-run`. Commit and push; CI must be green.
+3. `cargo publish --workspace` — **the point of no return**: a version can be yanked, never replaced.
+4. `git tag -a vX.Y.Z` and push the tag. The tag-driven workflow builds and smoke-tests every
+   archive and leaves a **draft** release. If it fails, nothing is public yet: fix, push, and move
+   the tag (it has produced no release, so nothing depends on it).
+5. Replace the generated notes with the changelog section and publish the draft
+   (`gh release edit vX.Y.Z --notes-file … --draft=false --latest`).
+6. `python3 scripts/bump-tap.py X.Y.Z` — one command; the tap's CI then installs the formula on
+   macOS and Linux and audits it.
+7. Update the README's version and the site (`scripts/gen-demo.py` if the output changed), and
+   verify from the outside: `cargo install termdoc --root <scratch>` and a download of the archive.
+
+### Traps
+
+**crates.io rate-limits *new* crates: a burst of five, then roughly one per ten minutes.** The first
+release created seven crates and hit `429` on the sixth, leaving the flagship name unclaimed; the
+stragglers went up on a retry loop over twenty minutes. `0.2.0` added two and fit the burst. Past five
+new crates in one release, publish them in a loop with gaps. New *versions* of existing crates have a
+far looser limit.
+
+**The release workflow's smoke test must not hard-code what the release contains.** It once asserted
+that `--formats` was exactly `text log markdown`, true for 0.1.0 and false for every release after,
+and it blocked 0.2.0 even though the binaries were fine. It now checks for each promised reader by
+name; add the new reader to that list when one lands.
 
 Also worth knowing: a published version can be yanked but never replaced or deleted, `cargo publish`
 refuses a dirty working tree, and crates.io rejects the upload outright if the account's email is
-not verified.
-
-The crates.io, CI and docs.rs badges are in `README.md`. Note that `termdoc-read-data` and `termdoc-read-code` are not on crates.io yet. They are new crates, so each must be published on its own first (one per ten minutes once the burst of five is spent), before the rest are released.
+not verified. Homebrew's own tooling in this machine's Command Line Tools may refuse to run on a new
+macOS (it did on 27); the tap's CI is the install check that does not depend on it.
 
 ---
 
@@ -356,28 +377,26 @@ The M1 items in §3 are the roadmap. These are not: they are release engineering
 any milestone, and they can be picked up whenever there is an appetite for something other than
 readers. Kept here so they stop living in someone's head.
 
-### B1. A Homebrew formula
+### B1. ~~A Homebrew formula~~  ← done (2026-10-08)
 
-**Why:** `cargo install termdoc` works, but it needs a Rust toolchain. Most people who want a
-document viewer do not have one, and will not install one to get it.
+`brew install marturojt/tap/termdoc`. The formula installs the release's prebuilt binary, as
+`dapctl.rb` does, and is **not** built from source: the workspace sets `lto = "fat"` and
+`codegen-units = 1`, which is right for an artifact built once in CI and wrong for something every
+user compiles while waiting.
 
-**The whole plan, with its reasoning, is DESIGN.md §15.** The short version, in order:
-
-1. ~~**Tag `v0.1.0` and cut a GitHub release.**~~ **Done (2026-08-11).** `.github/workflows/release.yml`
-   builds macOS universal, Linux x86_64 and aarch64, and Windows on any `v*` tag, verifies each
-   artifact by running it, and drafts a release carrying `SHA256SUMS.txt` — which is the file the
-   formula reads. The URLs a formula needs now exist.
-2. **Add `Formula/termdoc.rb` to the existing `marturojt/homebrew-tap`.** The tap already exists
-   and already carries a working `dapctl.rb`, so there is no tap to create — users reach it as
-   `brew install marturojt/tap/termdoc`.
-3. **Copy the shape of `dapctl.rb`**, which ships prebuilt binaries per platform rather than
-   building from source, and copy `dapctl`'s `.github/workflows/release.yml` that produces them.
-   Both are proven and belong to the same author.
-4. **Do not build from source in the formula.** The workspace sets `lto = "fat"` and
-   `codegen-units = 1`, which is right for an artifact built once in CI and wrong for something
-   every user compiles while waiting.
-5. **Automate the formula bump** from the release workflow. A tap that lags its releases is worse
-   than no tap.
+- ~~Tag and cut a release~~ — done (v0.1.0, then v0.2.0). The release carries `SHA256SUMS.txt`,
+  which is the file the formula reads.
+- ~~Add `Formula/termdoc.rb` to `marturojt/homebrew-tap`~~ — done. The tap's README now lists both
+  `termdoc` and `dapctl`.
+- **The tap has its own CI** (`.github/workflows/formulae.yml`): on every push it installs the
+  formula on macOS, Linux x86_64 and Linux arm, runs its `test do` block (which reads a Markdown
+  file, so it proves the binary works and not only that it prints a version), and runs
+  `brew audit --strict --online`. It is what verified the first install, and it is the check that a
+  release's checksums are the ones the formula pins.
+- **The bump is one command**, `scripts/bump-tap.py X.Y.Z` (`--dry-run` first). It is not a step in
+  the release workflow yet, and the reason is a secret: pushing to the tap from CI needs a token with
+  write access to another repository, which someone has to create. When there is one, the script is
+  already the body of the step.
 
 **Not `homebrew-core` yet.** It applies a notability bar in stars, forks and watchers that a newly
 published project does not clear. The existing tap now, core when there are users; the formula is

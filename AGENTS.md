@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 `termdoc` is a universal document viewer for the terminal, written in Rust. It reads any document
 and renders it as well as the terminal allows, degrading based on the terminal's real capabilities.
@@ -23,7 +23,7 @@ README's table must be kept honest against it.
 
 Code, comments, test names and user-facing messages are all in **English**.
 
-`AGENTS.md` is a copy of this file for Codex. Keep the two in sync: edit this one, then mirror the change.
+`AGENTS.md` is a copy of CLAUDE.md for Codex. Keep the two in sync: edit CLAUDE.md, then mirror the change.
 
 ## Commands
 

@@ -1,7 +1,7 @@
 # Handoff
 
 > For whoever picks this up next, human or agent.
-> Written 2026-08-10. The last code change was `307f822`; this document is the commit after it.
+> Written 2026-08-10, refreshed 2026-10-08. The last code change was `dd2a640` (the JSON reader).
 
 Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 [`DESIGN.md`](DESIGN.md) when you need the *why* behind a structure.
@@ -22,10 +22,10 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | | |
 |---|---|
 | Repo | `git@github.com:marturojt/termdoc.git`, branch `main` |
-| Commits | 11, history is clean and in English |
+| Commits | 15, history is clean and in English |
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
-| Code | ~10,100 lines across 7 crates |
+| Code | ~10,500 lines across 8 crates |
 | Tests | **266**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
@@ -58,7 +58,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 258 passing
+cargo test --workspace                                   # expect 266 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -276,7 +276,7 @@ Also worth knowing: a published version can be yanked but never replaced or dele
 refuses a dirty working tree, and crates.io rejects the upload outright if the account's email is
 not verified.
 
-Still open: the crates.io and docs.rs badges are not in `README.md` yet.
+The crates.io, CI and docs.rs badges are in `README.md`. Note that `termdoc-read-data` is not on crates.io yet: it is a new crate, so it must be published on its own first.
 
 ---
 

@@ -35,7 +35,7 @@ pub struct ReaderCaps {
 /// Options a reader needs to know about. Deliberately excludes width and color: those
 /// belong to the layout and the backend, and leaking them here would re-couple the
 /// stages.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ReadContext {
     /// Page or section range requested with `--page`.
     pub page_range: Option<(u32, u32)>,
@@ -50,6 +50,23 @@ pub struct ReadContext {
     pub delimiter: Option<u8>,
     /// Whether the first record of delimited text is a header. `None` lets the reader decide.
     pub header: Option<bool>,
+    /// Whether the output can carry colour at all. A reader that spends effort telling roles
+    /// apart (syntax highlighting) can skip it when this is `false`, because the text that comes
+    /// out is the same either way. Defaults to `true`: the safe answer is to describe.
+    pub styled: bool,
+}
+
+impl Default for ReadContext {
+    fn default() -> Self {
+        ReadContext {
+            page_range: None,
+            encoding: None,
+            metadata_only: false,
+            delimiter: None,
+            header: None,
+            styled: true,
+        }
+    }
 }
 
 /// Proposes a format based on the source's prefix.

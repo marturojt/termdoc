@@ -8,6 +8,7 @@ members = [
     "crates/termdoc-detect",
     "crates/termdoc-read-text",
     "crates/termdoc-read-data",
+    "crates/termdoc-read-code",
     "crates/termdoc-cli",
 ]
 
@@ -36,6 +37,7 @@ termdoc-layout = { path = "crates/termdoc-layout", version = "0.1.0" }
 termdoc-backend = { path = "crates/termdoc-backend", version = "0.1.0" }
 termdoc-read-text = { path = "crates/termdoc-read-text", version = "0.1.0" }
 termdoc-read-data = { path = "crates/termdoc-read-data", version = "0.1.0" }
+termdoc-read-code = { path = "crates/termdoc-read-code", version = "0.1.0" }
 termdoc-detect = { path = "crates/termdoc-detect", version = "0.1.0" }
 
 # External — versions verified on crates.io 2026-08-10 (docs/DESIGN.md §9)
@@ -51,6 +53,10 @@ chardetng = "1.0"
 infer = { version = "0.22", default-features = false, features = ["std"] }
 serde_json = "1.0"
 quick-xml = "0.42"
+# Pure Rust on purpose (`regex-fancy`): the C regex engine would need a C toolchain on every
+# platform the release workflow builds for, and the throughput difference is bounded by a ceiling.
+syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
 insta = "1.48"
 proptest = "1"
 

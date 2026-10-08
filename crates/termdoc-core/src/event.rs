@@ -215,6 +215,16 @@ pub enum TokenRole {
     Name,
     /// An XML attribute name.
     Attribute,
+    /// A language keyword: `fn`, `if`, `return`.
+    Keyword,
+    /// A type or class name.
+    Type,
+    /// A function or method name.
+    Function,
+    /// An operator: `+`, `=>`, `&&`.
+    Operator,
+    /// A named constant or a character escape.
+    Constant,
 }
 
 /// `Tag`'s discriminant, so `End` does not have to carry the payload again.

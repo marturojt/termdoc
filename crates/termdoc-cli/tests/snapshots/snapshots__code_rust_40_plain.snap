@@ -1,0 +1,45 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+//! A tiny inventory, to look at how sou
+rce code is highlighted.
+
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub struct Item<'a> {
+    name: &'a str,
+    qty: u32,
+    price: f64,
+}
+
+impl<'a> Item<'a> {
+    /// Total value of the stock, with a
+ 21% tax when `taxed` is set.
+    pub fn value(&self, taxed: bool) ->
+f64 {
+        let base = self.qty as f64 * sel
+f.price;
+        if taxed { base * 1.21 } else {
+base }
+    }
+}
+
+fn main() {
+    let mut stock: HashMap<&str, Item> =
+ HashMap::new();
+    stock.insert("bolt", Item { name: "b
+olt", qty: 120, price: 0.35 });
+    for (key, item) in &stock {
+        println!("{key}: {:.2}\t{}", ite
+m.value(true), item.name); // unicode: c
+afé — 日本語
+    }
+    /* a block comment
+       over two lines */
+    let very_long_line = "this string is
+ deliberately long so that the narrow wi
+dth has to chop it somewhere";
+    assert!(!very_long_line.is_empty());
+}

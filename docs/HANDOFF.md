@@ -12,7 +12,7 @@ Read this first, then [`CLAUDE.md`](../CLAUDE.md) for the working rules, then
 
 ```
 M0  ████████████████████  complete   Markdown, plain text, logs
-M1  █████████████░░░░░░░  ~65%       detection, encoding, JSON, YAML, TOML, XML, CSV landed; readers pending
+M1  █████████████████░░░  ~85%       detection, encoding, JSON, YAML, TOML, XML, CSV, code landed; logs pending
 M2  ░░░░░░░░░░░░░░░░░░░░             the TUI pager
 M3  ░░░░░░░░░░░░░░░░░░░░             HTML, DOCX, ODT, RTF, EPUB, PDF, images
 M4  ░░░░░░░░░░░░░░░░░░░░             plugin host and SDK
@@ -25,8 +25,8 @@ M5  ░░░░░░░░░░░░░░░░░░░░             PPT
 | Commits | 15, history is clean and in English |
 | crates.io | all 7 crates live at `0.1.0`; `cargo install termdoc` — see §10 |
 | Site | [termdoc.app](https://termdoc.app), source in `marturojt/termdoc-site` (Next.js on Vercel) |
-| Code | ~10,500 lines across 8 crates |
-| Tests | **372**, all green |
+| Code | ~14,000 lines across 9 crates |
+| Tests | **407**, all green |
 | Lint | `clippy -D warnings` clean, `fmt` clean |
 | CI | 6 jobs green on Linux/macOS/**Windows** |
 | Startup | 3.9 ms (budget 10) |
@@ -46,7 +46,7 @@ termdoc --encoding latin1 x.txt
 termdoc --ascii --width 40 t.md
 ```
 
-Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV**. Detection recognizes far more (HTML, source code, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
+Readers exist for **Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code**. Detection recognizes far more (HTML, PDF, DOCX, ODT, EPUB, XLSX, PPTX, binaries) and anything textual
 without its own reader falls back to plain text with a warning on stderr. That fallback is
 deliberate, not an oversight — see §4.
 
@@ -57,7 +57,7 @@ deliberate, not an oversight — see §4.
 Five minutes to confirm nothing rotted, and it doubles as a tour:
 
 ```bash
-cargo test --workspace                                   # expect 372 passing
+cargo test --workspace                                   # expect 407 passing
 cargo clippy --workspace --all-targets -- -D warnings    # expect silence
 cargo build --release && python3 scripts/perf-gate.py    # expect 3 OK
 target/release/termdoc corpus/basic.md                   # expect colors and a table
@@ -127,19 +127,37 @@ The overrides exist too: `--delimiter <char|name>` replaces detection, and
 record made only of numbers as data). It is **`--csv-header`, not `--no-header`**, because
 `--no-header` already means "no `==> file <==` banner" and renaming either would break users.
 
-### M1-3. Syntax highlighting
+### M1-3. ~~Syntax highlighting~~  ← done (2026-10-08)
 
-`syntect` 5.3 with `two-face` 0.5 (which bundles `bat`'s assets). Two jobs:
+New crate `termdoc-read-code` (core only, like every reader): `CodeReader` for
+`FormatId::SourceCode` and `CodeBlockHighlighter`, a `Transform` that `run.rs` applies to the
+stream. Read `engine.rs`'s module header — the measurements and the two ceilings are there.
 
-- A reader for source files (`FormatId::SourceCode`).
-- A `Transform` over `CodeBlock` so fenced Markdown blocks get highlighted too.
+Decisions worth knowing before touching it:
 
-**The startup budget is the whole difficulty.** Load assets lazily from the binary dump, only when a
-code block actually appears. If `perf-gate.py` shows startup crossing 10 ms, the laziness is wrong —
-that gate exists precisely to catch this.
-
-`termdoc_detect::language_for(&src)` already resolves the grammar name from the extension, the
-filename or the shebang.
+- **`syntect` is used for its parser only.** Its scopes are mapped to `TokenRole`s (`RULES` in
+  `engine.rs`) and the *theme* decides the look. A TextMate theme's RGB colours would have
+  bypassed the terminal's palette and the colour ladder, which is the opposite of how the rest of
+  termdoc colours things. Five roles were added: `Keyword`, `Type`, `Function`, `Operator`,
+  `Constant`.
+- **`fancy-regex`, not `onig`.** Pure Rust, so no C toolchain on the platforms the release workflow
+  builds for. The price is speed: ~0.5 MB/s, about 3-4x slower than `onig`. If that ever hurts, the
+  switch is a feature flag, and the ceiling below is what makes it a choice and not a crisis.
+- **Highlighting is bounded twice.** `MAX_HIGHLIGHTED_BYTES` (512 KiB, about a second): the rest of
+  the document is shown plain, with a warning. `MAX_LINE` (16 KiB): a longer line (minified code)
+  is shown plain without ending the highlighting.
+- **It costs ~10-18 MB per language** (grammar plus its compiled regexes), bounded by how many
+  languages a document uses, not by its size. A Markdown file with three languages peaks near
+  50 MB. This is *outside* the "50 MB on 488 MB of input" budget, which is about size, and
+  `perf-gate.py` pins both sides: no code means no grammar is loaded (1.5 MB), one language stays
+  under 30 MB.
+- **No colour, no highlighting.** `run.rs` sets `ReadContext::styled` from the colour depth and
+  skips the transform when there is none, so a pipe never pays for it and the startup gate (which
+  runs piped) cannot see it.
+- **The shared line plumbing moved to `termdoc_core::highlight`** (`HighlightEvents`, `Painter`),
+  because a reader may depend on core only and three readers now use it.
+- The detection's `language_for` is *not* used: `syntect` resolves the grammar itself from the
+  file name, the extension, or a `#!` line, and a reader could not call detection anyway.
 
 ### M1-4. Log reader and incremental stdin
 
@@ -291,7 +309,7 @@ Also worth knowing: a published version can be yanked but never replaced or dele
 refuses a dirty working tree, and crates.io rejects the upload outright if the account's email is
 not verified.
 
-The crates.io, CI and docs.rs badges are in `README.md`. Note that `termdoc-read-data` is not on crates.io yet: it is a new crate, so it must be published on its own first.
+The crates.io, CI and docs.rs badges are in `README.md`. Note that `termdoc-read-data` and `termdoc-read-code` are not on crates.io yet. They are new crates, so each must be published on its own first (one per ten minutes once the burst of five is spent), before the rest are released.
 
 ---
 

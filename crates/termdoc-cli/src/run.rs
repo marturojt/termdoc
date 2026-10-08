@@ -7,9 +7,11 @@ use std::io::Write;
 
 use termdoc_backend::{AnsiBackend, PlainBackend};
 use termdoc_core::{
-    Backend, Diagnostic, Error, FormatId, ReadContext, Registry, Result, Severity, Source, exit,
+    Backend, Diagnostic, Error, FormatId, ReadContext, Registry, Result, Severity, Source,
+    Transform, exit,
 };
 use termdoc_layout::{Layout, LayoutOptions, Theme};
+use termdoc_read_code::CodeBlockHighlighter;
 use termdoc_term::{Caps, ColorDepth, Fidelity, MAX_COMFORTABLE_WIDTH, UnicodeLevel};
 
 use crate::cli::{BackendChoice, Cli, CsvHeader, When};
@@ -22,6 +24,7 @@ pub fn build_registry() -> Registry {
     termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
     termdoc_read_data::register(&mut registry);
+    termdoc_read_code::register(&mut registry);
     // In M4, discovered plugins get added here. Order matters: because they register later,
     // a plugin can deliberately replace a built-in.
     registry
@@ -37,11 +40,7 @@ pub fn build_registry() -> Registry {
 fn readable_as_text(format: FormatId) -> bool {
     matches!(
         format,
-        FormatId::Html
-            | FormatId::SourceCode
-            | FormatId::PlainText
-            | FormatId::Log
-            | FormatId::Markdown
+        FormatId::Html | FormatId::PlainText | FormatId::Log | FormatId::Markdown
     )
 }
 
@@ -222,6 +221,9 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
             metadata_only: cli.meta,
             delimiter: (format == FormatId::Csv)
                 .then(|| cli.delimiter.unwrap_or_else(|| csv_delimiter(&src))),
+            // With no colour the text comes out the same either way, so a reader may skip the
+            // work of telling roles apart.
+            styled: fidelity.color != ColorDepth::None,
             header: match cli.csv_header {
                 CsvHeader::Auto => None,
                 CsvHeader::Yes => Some(true),
@@ -230,6 +232,13 @@ pub fn run(cli: &Cli, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32> {
             ..ReadContext::default()
         };
         let events = reader.read(&src, &ctx)?;
+        // Fenced code blocks, in any document, get their grammar. Not worth the work when the
+        // output carries no colour, and `--meta` shows no body at all.
+        let events = if ctx.styled && !cli.meta {
+            CodeBlockHighlighter::new().apply(events)
+        } else {
+            events
+        };
 
         if cli.meta {
             print_metadata(events, &src, format, out)?;

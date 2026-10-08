@@ -29,7 +29,7 @@ use termdoc_core::{
     DocumentReader, Events, FormatId, ReadContext, ReaderCaps, Result, Source, TokenRole,
 };
 
-use crate::highlight::{HighlightEvents, Painter, Piece, skip_spaces, trim_end};
+use termdoc_core::highlight::{HighlightEvents, Painter, Piece, skip_spaces, trim_end};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TomlReader;
@@ -55,7 +55,12 @@ impl DocumentReader for TomlReader {
     }
 
     fn read<'a>(&self, src: &'a Source, _ctx: &ReadContext) -> Result<Events<'a>> {
-        Ok(Box::new(HighlightEvents::new(src, FormatId::Toml, lex)))
+        Ok(Box::new(HighlightEvents::new(
+            src,
+            FormatId::Toml,
+            State::default(),
+            lex,
+        )))
     }
 }
 

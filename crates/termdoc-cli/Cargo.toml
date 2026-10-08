@@ -28,6 +28,7 @@ termdoc-layout.workspace = true
 termdoc-backend.workspace = true
 termdoc-read-text.workspace = true
 termdoc-read-data.workspace = true
+termdoc-read-code.workspace = true
 termdoc-detect.workspace = true
 clap.workspace = true
 

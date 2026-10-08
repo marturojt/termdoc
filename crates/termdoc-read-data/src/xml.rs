@@ -47,7 +47,7 @@ use termdoc_core::{
     Source, Span, Spanned, Tag, TagKind, TokenRole,
 };
 
-use crate::highlight::{Painter, Piece};
+use termdoc_core::highlight::{Painter, Piece};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct XmlReader;

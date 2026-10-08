@@ -41,6 +41,11 @@ pub struct Theme {
     pub token_comment: Style,
     pub token_name: Style,
     pub token_attribute: Style,
+    pub token_keyword: Style,
+    pub token_type: Style,
+    pub token_function: Style,
+    pub token_operator: Style,
+    pub token_constant: Style,
 }
 
 impl Default for Theme {
@@ -86,6 +91,13 @@ impl Default for Theme {
             token_comment: Style::fg(c(BrightBlack)).with_italic(),
             token_name: Style::bold().with_fg(c(BrightBlue)),
             token_attribute: Style::fg(c(Cyan)),
+            token_keyword: Style::fg(c(Magenta)),
+            token_type: Style::fg(c(Cyan)),
+            token_function: Style::fg(c(BrightBlue)),
+            // Operators are left in the terminal's own colour: coloured, they turn code into
+            // confetti, and what they carry is already in the keywords and names around them.
+            token_operator: Style::PLAIN,
+            token_constant: Style::fg(c(BrightMagenta)),
         }
     }
 }
@@ -125,6 +137,11 @@ impl Theme {
             token_comment: Style::PLAIN,
             token_name: Style::PLAIN,
             token_attribute: Style::PLAIN,
+            token_keyword: Style::PLAIN,
+            token_type: Style::PLAIN,
+            token_function: Style::PLAIN,
+            token_operator: Style::PLAIN,
+            token_constant: Style::PLAIN,
         }
     }
 
@@ -141,6 +158,11 @@ impl Theme {
             TokenRole::Comment => self.token_comment,
             TokenRole::Name => self.token_name,
             TokenRole::Attribute => self.token_attribute,
+            TokenRole::Keyword => self.token_keyword,
+            TokenRole::Type => self.token_type,
+            TokenRole::Function => self.token_function,
+            TokenRole::Operator => self.token_operator,
+            TokenRole::Constant => self.token_constant,
         }
     }
 

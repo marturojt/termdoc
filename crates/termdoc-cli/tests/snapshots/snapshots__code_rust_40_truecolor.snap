@@ -1,0 +1,45 @@
+---
+source: crates/termdoc-cli/tests/snapshots.rs
+expression: output
+---
+<ESC>[0;3;90m//! A tiny inventory, to look at how sou<ESC>[0m
+<ESC>[0;3;90mrce code is highlighted.<ESC>[0m
+
+<ESC>[0;35muse<ESC>[0m std<ESC>[0;90m::<ESC>[0mcollections<ESC>[0;90m::<ESC>[0mHashMap<ESC>[0;90m;<ESC>[0m
+
+<ESC>[0;36m#<ESC>[0;90m[<ESC>[0;36mderive<ESC>[0;90m(<ESC>[0mDebug<ESC>[0;90m,<ESC>[0m Clone<ESC>[0;90m)]<ESC>[0m
+<ESC>[0;35mpub<ESC>[0m <ESC>[0;35mstruct<ESC>[0m <ESC>[0;36mItem<ESC>[0;90m<<ESC>[0;35m'a<ESC>[0;90m><ESC>[0m <ESC>[0;90m{<ESC>[0m
+    name<ESC>[0;90m:<ESC>[0m &<ESC>[0;35m'a<ESC>[0m <ESC>[0;36mstr<ESC>[0m,
+    qty<ESC>[0;90m:<ESC>[0m <ESC>[0;36mu32<ESC>[0m,
+    price<ESC>[0;90m:<ESC>[0m <ESC>[0;36mf64<ESC>[0m,
+<ESC>[0;90m}<ESC>[0m
+
+<ESC>[0;35mimpl<ESC>[0;90m<<ESC>[0;35m'a<ESC>[0;90m><ESC>[0m Item<ESC>[0;90m<<ESC>[0;35m'a<ESC>[0;90m><ESC>[0m <ESC>[0;90m{<ESC>[0m
+    <ESC>[0;3;90m/// Total value of the stock, with a<ESC>[0m
+<ESC>[0;3;90m 21% tax when `taxed` is set.<ESC>[0m
+    <ESC>[0;35mpub<ESC>[0m <ESC>[0;35mfn<ESC>[0m <ESC>[0;94mvalue<ESC>[0;90m(<ESC>[0m&self, taxed<ESC>[0;90m:<ESC>[0m <ESC>[0;36mbool<ESC>[0;90m)<ESC>[0m <ESC>[0;90m-><ESC>[0m
+<ESC>[0;36mf64<ESC>[0m <ESC>[0;90m{<ESC>[0m
+        <ESC>[0;35mlet<ESC>[0m base = <ESC>[0;35mself<ESC>[0;90m.<ESC>[0mqty as <ESC>[0;36mf64<ESC>[0m * <ESC>[0;35msel<ESC>[0m
+<ESC>[0;35mf<ESC>[0;90m.<ESC>[0mprice<ESC>[0;90m;<ESC>[0m
+        <ESC>[0;35mif<ESC>[0m taxed <ESC>[0;90m{<ESC>[0m base * <ESC>[0;33m1.21<ESC>[0m <ESC>[0;90m}<ESC>[0m <ESC>[0;35melse<ESC>[0m <ESC>[0;90m{<ESC>[0m
+base <ESC>[0;90m}<ESC>[0m
+    <ESC>[0;90m}<ESC>[0m
+<ESC>[0;90m}<ESC>[0m
+
+<ESC>[0;35mfn<ESC>[0m <ESC>[0;94mmain<ESC>[0;90m()<ESC>[0m <ESC>[0;90m{<ESC>[0m
+    <ESC>[0;35mlet<ESC>[0m <ESC>[0;35mmut<ESC>[0m stock<ESC>[0;90m:<ESC>[0m HashMap<ESC>[0;90m<<ESC>[0m&<ESC>[0;36mstr<ESC>[0m, Item<ESC>[0;90m><ESC>[0m =
+ HashMap<ESC>[0;90m::<ESC>[0mnew<ESC>[0;90m();<ESC>[0m
+    stock<ESC>[0;90m.<ESC>[0;94minsert<ESC>[0;90m(<ESC>[0;32m"bolt"<ESC>[0;90m,<ESC>[0m Item <ESC>[0;90m{<ESC>[0m name<ESC>[0;90m:<ESC>[0m <ESC>[0;32m"b<ESC>[0m
+<ESC>[0;32molt"<ESC>[0;90m,<ESC>[0m qty<ESC>[0;90m:<ESC>[0m <ESC>[0;33m120<ESC>[0;90m,<ESC>[0m price<ESC>[0;90m:<ESC>[0m <ESC>[0;33m0.35<ESC>[0m <ESC>[0;90m});<ESC>[0m
+    <ESC>[0;35mfor<ESC>[0m <ESC>[0;90m(<ESC>[0mkey<ESC>[0;90m,<ESC>[0m item<ESC>[0;90m)<ESC>[0m in &stock <ESC>[0;90m{<ESC>[0m
+        println!<ESC>[0;90m(<ESC>[0;32m"<ESC>[0;95m{key}<ESC>[0;32m: <ESC>[0;95m{:.2}\t{}<ESC>[0;32m"<ESC>[0;90m,<ESC>[0m ite
+m<ESC>[0;90m.<ESC>[0;94mvalue<ESC>[0;90m(<ESC>[0;95mtrue<ESC>[0;90m),<ESC>[0m item<ESC>[0;90m.<ESC>[0mname<ESC>[0;90m);<ESC>[0m <ESC>[0;3;90m// unicode: c<ESC>[0m
+<ESC>[0;3;90mafé — 日本語<ESC>[0m
+    <ESC>[0;90m}<ESC>[0m
+    <ESC>[0;3;90m/* a block comment<ESC>[0m
+<ESC>[0;3;90m       over two lines */<ESC>[0m
+    <ESC>[0;35mlet<ESC>[0m very_long_line = <ESC>[0;32m"this string is<ESC>[0m
+<ESC>[0;32m deliberately long so that the narrow wi<ESC>[0m
+<ESC>[0;32mdth has to chop it somewhere"<ESC>[0;90m;<ESC>[0m
+    assert!<ESC>[0;90m(<ESC>[0m!very_long_line<ESC>[0;90m.<ESC>[0;94mis_empty<ESC>[0;90m());<ESC>[0m
+<ESC>[0;90m}<ESC>[0m

@@ -30,6 +30,9 @@ BINARY = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "target/release/term
 
 MAX_STARTUP_MS = float(os.environ.get("TERMDOC_MAX_STARTUP_MS", "10"))
 MAX_OWN_MEM_MB = float(os.environ.get("TERMDOC_MAX_OWN_MEM_MB", "50"))
+# One highlighted language, and the same colour-forced run over a document with no code at all.
+MAX_HIGHLIGHT_MEM_MB = float(os.environ.get("TERMDOC_MAX_HIGHLIGHT_MEM_MB", "30"))
+MAX_NO_CODE_MEM_MB = float(os.environ.get("TERMDOC_MAX_NO_CODE_MEM_MB", "5"))
 CORPUS_LINES = int(os.environ.get("TERMDOC_CORPUS_LINES", "300000"))
 
 failures: list[str] = []
@@ -114,6 +117,36 @@ def own_memory_mb(args: list) -> float | None:
     return None
 
 
+def gate_highlight() -> None:
+    """Syntax highlighting is paid for only where there is code.
+
+    Two things are pinned, both with colour forced (a pipe skips highlighting, which would
+    make the gate measure nothing). A document with no code must not load a grammar, which is
+    what keeps highlighting out of everyone else's startup. And one language must stay within
+    what was measured: every grammar costs roughly 10-18 MB (src/engine.rs in termdoc-read-code),
+    and a regression there, say a feature flag that pulls in a heavier regex engine, should be a
+    failure rather than a surprise.
+
+    On Linux the figure is a pessimistic ceiling (see `own_memory_mb`), and children's maximum
+    is cumulative, so the small measurement is taken first and the limits are loosened.
+    """
+    linux = platform.system() == "Linux"
+    cases = [
+        ("highlighting: no code, no cost", ROOT / "corpus/plain.txt", MAX_NO_CODE_MEM_MB, 12),
+        ("highlighting: one language", ROOT / "corpus/code.rs", MAX_HIGHLIGHT_MEM_MB, 45),
+    ]
+    for name, doc, strict, loose in cases:
+        mb = own_memory_mb([BINARY, "--color", "always", doc])
+        if mb is None:
+            print(f"  \033[33mSKIP\033[0m  {name} — no method available on {platform.system()}")
+            continue
+        limit = max(strict, loose) if linux else strict
+        detail = f"{mb:.1f} MB (limit {limit:.0f} MB)"
+        if linux:
+            detail += " [pessimistic ceiling]"
+        (ok if mb <= limit else fail)(name, detail)
+
+
 def gate_memory() -> None:
     log = ensure_log()
     mb = own_memory_mb([BINARY, log])
@@ -175,6 +208,8 @@ def main() -> int:
 
     print(f"performance gates — {platform.system()} — {BINARY}")
     gate_startup()
+    # Before the large-input gate: on Linux the children's maximum only ever grows.
+    gate_highlight()
     gate_memory()
     if platform.system() != "Windows":
         gate_lazy_output()

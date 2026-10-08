@@ -28,6 +28,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
     // emitting ANSI and the ability to add backends would be lost.
     ("termdoc-read-text", &["termdoc-core"]),
     ("termdoc-read-data", &["termdoc-core"]),
+    ("termdoc-read-code", &["termdoc-core"]),
     // The CLI is the only crate that wires things together: it may see everything.
     (
         "termdoc-cli",
@@ -38,6 +39,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "termdoc-backend",
             "termdoc-read-text",
             "termdoc-read-data",
+            "termdoc-read-code",
             "termdoc-detect",
         ],
     ),

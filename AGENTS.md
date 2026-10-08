@@ -13,8 +13,8 @@ It is not an editor, not a converter, and not an IDE.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — where the work stands, what comes next, and the traps
   already paid for. **Read it first if you are picking this up mid-stream.**
 
-Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML, XML and CSV readers landed;
-source code and the dedicated log reader have not. Roadmap in `docs/DESIGN.md` §11.
+Status: **M0 complete**, **M1 in progress** — detection, encoding, the JSON, YAML, TOML, XML, CSV and source-code readers landed;
+only the dedicated log reader has not. Roadmap in `docs/DESIGN.md` §11.
 
 Published: all seven crates are on crates.io at `0.1.0` (`cargo install termdoc`), and the site is
 [termdoc.app](https://termdoc.app), whose source lives in the separate `marturojt/termdoc-site`
@@ -28,7 +28,7 @@ Code, comments, test names and user-facing messages are all in **English**.
 ## Commands
 
 ```bash
-cargo test --workspace                          # 372 tests
+cargo test --workspace                          # 407 tests
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo build --release                           # binary at target/release/termdoc
@@ -92,6 +92,7 @@ termdoc-detect     → core            what a document IS, never how it looks
 termdoc-layout     → core, term      wrapping, tables, lists, glyphs
 termdoc-backend    → core, term      ANSI and Plain
 termdoc-read-*     → core            core ONLY: a reader cannot see a backend
+                                     (read-text, read-data, read-code)
 termdoc-cli        → everything      the wiring
 ```
 
@@ -145,6 +146,8 @@ Do not break these without changing the design first:
 | Format detection layers | `crates/termdoc-detect/src/lib.rs` |
 | CSV delimiter sniffing | `crates/termdoc-detect/src/delimited.rs` |
 | Encoding detection | `crates/termdoc-detect/src/charset.rs` |
+| Syntax highlighting: scope → role rules, ceilings, costs | `crates/termdoc-read-code/src/engine.rs` |
+| Shared line-by-line reader plumbing | `crates/termdoc-core/src/highlight.rs` |
 | Magic bytes and intra-ZIP | `crates/termdoc-detect/src/magic.rs` |
 | CLI flags | `crates/termdoc-cli/src/cli.rs` |
 | Pipeline wiring | `crates/termdoc-cli/src/run.rs` |

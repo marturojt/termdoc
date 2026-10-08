@@ -24,7 +24,6 @@
 //! order does not depend on which readers a build happens to contain.
 
 mod csv;
-mod highlight;
 mod json;
 mod toml;
 mod xml;

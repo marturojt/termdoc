@@ -182,7 +182,14 @@ pub type Events<'a> = Box<dyn Iterator<Item = Result<Spanned<Event<'a>>>> + 'a>;
 >   terminator on each line** it emits (`"one\n"`), which costs nothing — the slice still
 >   borrows from the `mmap` — and the layout trims `\n` and `\r\n` itself.
 >
-> A syntax highlighter (M1-3) is the same shape: one line, several styled runs.
+> The syntax highlighter (M1-3) is the same shape: one line, several styled runs, with the roles
+> `Keyword`, `Type`, `Function`, `Operator` and `Constant` added for code. It maps the grammar's
+> *scopes* to roles and never uses a theme's RGB colours, so highlighted code obeys the terminal's
+> own palette and the colour ladder like everything else.
+>
+> A `CodeBlock` the highlighter understands leaves its transform as `Preformatted` with tokens
+> (`CodeBlock` carries the theme's flat colour, which must not sit under them); one it does not
+> understand — unknown language, no language, `text` — passes through untouched.
 
 Reasons, in order of weight:
 
@@ -272,8 +279,9 @@ termdoc/
 │   ├── termdoc-layout/           # layout engine: wrapping, tables, lists, fidelity
 │   ├── termdoc-term/             # terminal capabilities, probing, caching
 │   ├── termdoc-backend/          # Ansi, Plain, Markdown, Html + graphics
-│   ├── termdoc-read-text/        # txt, markdown, log, code (syntect)
+│   ├── termdoc-read-text/        # txt, markdown, log
 │   ├── termdoc-read-data/        # json, yaml, toml, xml, csv
+│   ├── termdoc-read-code/        # source files + fenced code blocks (syntect, two-face)
 │   ├── termdoc-read-markup/      # html
 │   ├── termdoc-read-office/      # docx, odt, rtf, xlsx, pptx (the ZIP+XML family)
 │   ├── termdoc-read-epub/        # epub (reuses zip + markup's XHTML parser)
@@ -294,7 +302,8 @@ The permitted dependency directions — **anything else is a compile error**:
 ```
 termdoc-cli        → everything
 termdoc-read-*     → core                    (does NOT see backend, layout or term)
-                                             read-text: md/txt/log · read-data: json
+                                             read-text: md/txt/log · read-data: json/yaml/
+                                             toml/xml/csv · read-code: syntect
 termdoc-backend    → core, term
 termdoc-layout     → core, term
 termdoc-tui        → core, layout, backend, term
@@ -525,7 +534,7 @@ Verified on crates.io on 2026-08-10 (stable version and 90-day downloads).
 | CLI | `clap` (derive) | 4.6 | |
 | Errors | `thiserror` / `miette` | 2.0 / 7.6 | lib / CLI |
 | Markdown | `pulldown-cmark` | 0.13 | It *is* an event stream: a perfect fit for the internal model |
-| Syntax | `syntect` + `two-face` | 5.3 / 0.5 | `two-face` bundles `bat`'s assets |
+| Syntax | `syntect` + `two-face` | 5.3 / 0.5 | `two-face` bundles `bat`'s grammars. Used for its *parser* only, with the pure-Rust `fancy-regex` backend (no C toolchain). Measured: grammars load in ~2 ms, parse ~0.5 MB/s, ~10–18 MB per language; see `termdoc-read-code/src/engine.rs` |
 | TUI | `ratatui` + `crossterm` | 0.30 / 0.29 | `crossterm` covers Windows |
 | Images | `ratatui-image` | 11.0 | Kitty + iTerm2 + Sixel + half-blocks. **Preferred over `viuer`**, which "dumps" the image and does not cohabit with a TUI |
 | XML | `quick-xml` | 0.42 | Streaming; the basis of DOCX/ODT/EPUB/XLSX |

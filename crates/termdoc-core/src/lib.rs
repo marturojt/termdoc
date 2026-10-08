@@ -13,6 +13,7 @@
 mod error;
 mod event;
 mod format;
+pub mod highlight;
 mod line;
 mod registry;
 mod source;

@@ -14,7 +14,7 @@
 A fast, terminal-native document viewer. One command for whatever document is in
 front of you, instead of a different tool for every file type.
 
-**Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV render today.** Many more formats are already
+**Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code render today.** Many more formats are already
 recognised, and their dedicated readers are being added one milestone at a time —
 [what works right now](#supported-formats) is spelled out below, precisely.
 
@@ -50,6 +50,7 @@ termdoc Cargo.toml                # same for TOML: tables, arrays, multi-line st
 termdoc feed.xml                  # tags, attributes, comments and CDATA told apart
 termdoc data.csv                  # a table: aligned, wrapped, numbers right-aligned
 termdoc --delimiter ';' data.csv  # when the delimiter cannot be guessed
+termdoc src/main.rs               # syntax-highlighted; so are fenced blocks in Markdown
 termdoc --explain odd.dat         # why it chose that format, then exit
 termdoc --formats                 # what this build can actually read
 ```
@@ -106,7 +107,7 @@ doing it.
 | XML | ✅ | ✅ |
 | HTML | ✅ | 🚧 |
 | CSV | ✅ | ✅ |
-| Source code | ✅ | 🚧 |
+| Source code | ✅ | ✅ |
 | PDF | ✅ | ⛔ |
 | DOCX · ODT | ✅ | ⛔ |
 | EPUB | ✅ | ⛔ |
@@ -172,8 +173,8 @@ numbered references. With colour off, not one escape byte is emitted.
 
 ## Roadmap
 
-**Now** — Markdown · plain text · logs · JSON · YAML · TOML · XML
-**Next** — syntax-highlighted source
+**Now** — Markdown · plain text · logs · JSON · YAML · TOML · XML · CSV · source code
+**Next** — a dedicated log reader
 **Then** — the interactive pager: scrolling, search, table-of-contents navigation
 **Later** — HTML · PDF · DOCX · ODT · EPUB · images, then plugins
 
@@ -189,7 +190,7 @@ next: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 **v0.1.0 · M0 complete, M1 in progress.**
 
-Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML and CSV. In progress: syntax-highlighted source code and the dedicated log reader, then
+Stable today: Markdown, plain text, logs, JSON, YAML, TOML, XML, CSV and source code. In progress: the dedicated log reader, then
 richer formats. The API of the library crates is **unstable before 1.0** — they
 are published so the binary can be, not because anything should be built on them
 yet. `1.0` is gated on freezing the document model and the plugin protocol.

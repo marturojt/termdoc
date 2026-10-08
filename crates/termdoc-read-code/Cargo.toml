@@ -1,0 +1,20 @@
+[package]
+name = "termdoc-read-code"
+description = "Syntax highlighting for termdoc: source files and fenced code blocks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+authors.workspace = true
+keywords = ["syntax-highlighting", "syntect", "viewer", "terminal"]
+categories = ["text-processing", "parsing"]
+
+# LAYERING INVARIANT: core only. Highlighting says what a span *is* (a keyword, a string); the
+# theme decides how that looks, so this crate cannot see the layout or a backend.
+[dependencies]
+termdoc-core.workspace = true
+syntect.workspace = true
+two-face.workspace = true

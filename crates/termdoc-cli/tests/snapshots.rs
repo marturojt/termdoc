@@ -12,7 +12,7 @@
 
 use std::path::PathBuf;
 
-use termdoc_core::{ReadContext, Registry, Source};
+use termdoc_core::{ReadContext, Registry, Source, Transform};
 use termdoc_layout::{Layout, LayoutOptions, Theme};
 use termdoc_term::{ColorDepth, Fidelity, GraphicsProto, UnicodeLevel};
 
@@ -66,12 +66,21 @@ fn render(path: &PathBuf, width: usize, fidelity: Fidelity) -> String {
     termdoc_detect::register(&mut registry);
     termdoc_read_text::register(&mut registry);
     termdoc_read_data::register(&mut registry);
+    termdoc_read_code::register(&mut registry);
     let format = registry.detect_or_fallback(&src).format;
     let reader = registry.reader_for(format).expect("a reader is available");
 
-    let events = reader
-        .read(&src, &ReadContext::default())
-        .expect("a successful read");
+    // The same two decisions `run.rs` makes: no colour, no point describing what is not shown.
+    let ctx = ReadContext {
+        styled: fidelity.color != ColorDepth::None,
+        ..ReadContext::default()
+    };
+    let events = reader.read(&src, &ctx).expect("a successful read");
+    let events = if ctx.styled {
+        termdoc_read_code::CodeBlockHighlighter::new().apply(events)
+    } else {
+        events
+    };
 
     let opts = LayoutOptions {
         width,
@@ -140,6 +149,12 @@ snapshot_matrix!(data_xml, "data.xml", [40usize, 80]);
 // a wide one: what the table's width allocation and alignment have to get right. The narrow
 // width is the one that falls to the TSV rung.
 snapshot_matrix!(data_csv, "data.csv", [30usize, 100]);
+// A source file: keywords, types, a function name, a string with an escape, numbers, an
+// attribute, a lifetime and both kinds of comment. The narrow width chops a long line.
+snapshot_matrix!(code_rust, "code.rs", [40usize, 100]);
+// Fenced blocks in Markdown: three languages that are highlighted, and three kinds of block
+// that must keep the theme's flat code colour (unknown language, no language, `text`).
+snapshot_matrix!(code_fences, "code.md", [60usize]);
 
 /// Degrading changes the appearance, never the content.
 ///

@@ -30,9 +30,9 @@ A <ESC>[0;1muniversal<ESC>[0m document viewer for the
 
 <ESC>[0;1;96mCode<ESC>[0m
 
-<ESC>[0;93mfn main() {<ESC>[0m
-<ESC>[0;93m    println!("hello");<ESC>[0m
-<ESC>[0;93m}<ESC>[0m
+<ESC>[0;35mfn<ESC>[0m <ESC>[0;94mmain<ESC>[0;90m()<ESC>[0m <ESC>[0;90m{<ESC>[0m
+    println!<ESC>[0;90m(<ESC>[0;32m"hello"<ESC>[0;90m);<ESC>[0m
+<ESC>[0;90m}<ESC>[0m
 
 <ESC>[0;90m│<ESC>[0m <ESC>[0;2;3mA block quote long enough to show how<ESC>[0m
 <ESC>[0;90m│<ESC>[0m <ESC>[0;2;3mit wraps inside the margin.<ESC>[0m

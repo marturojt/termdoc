@@ -782,3 +782,62 @@ fn no_header_still_means_no_filename_banner() {
     assert_eq!(code, 0);
     assert!(!out.contains("==>"), "{out}");
 }
+
+#[test]
+fn a_source_file_is_highlighted_with_colour_and_untouched_without() {
+    let src = "fn main() {\n    let x = 1; // note\n}\n";
+    let path = scratch("hl.rs", src.as_bytes());
+    let p = path.to_str().unwrap();
+
+    let (plain, stderr, code) = run(&["--color", "never", p]);
+    assert_eq!(code, 0, "{stderr}");
+    assert_eq!(plain, src, "a pipe gets the file, byte for byte");
+
+    let (colored, stderr, _) = run(&["--color", "always", p]);
+    assert!(stderr.is_empty(), "{stderr}");
+    // The keyword is magenta, and the comment is not: roles, not one flat colour.
+    assert!(colored.contains("\x1b[0;35mfn"), "{colored:?}");
+    assert!(colored.contains("// note"), "{colored:?}");
+    assert!(
+        colored.matches('\x1b').count() > 8,
+        "several roles on a few lines: {colored:?}"
+    );
+}
+
+#[test]
+fn fenced_code_is_highlighted_only_when_its_language_has_a_grammar() {
+    let md = "```python\ndef f(): pass\n```\n\n```nonsense-lang-xyz\ndef g(): pass\n```\n";
+    let path = scratch("fence.md", md.as_bytes());
+    let (out, stderr, code) = run(&["--color", "always", path.to_str().unwrap()]);
+    assert_eq!(code, 0, "{stderr}");
+
+    let flat_yellow = "\x1b[0;93m";
+    let python = out
+        .lines()
+        .find(|l| l.contains("def") && l.contains("f"))
+        .unwrap();
+    let unknown = out.lines().find(|l| l.contains("def g")).unwrap();
+    // The block with a grammar gets roles; the one without keeps the theme's flat colour.
+    assert!(!python.contains(flat_yellow), "{python:?}");
+    assert!(python.contains("\x1b[0;35mdef"), "{python:?}");
+    assert!(unknown.starts_with(flat_yellow), "{unknown:?}");
+}
+
+#[test]
+fn a_pipe_never_pays_for_highlighting_and_never_changes() {
+    let md = "```rust\nfn main() {}\n```\n";
+    let path = scratch("pipe.md", md.as_bytes());
+    let (out, _, code) = run(&[path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    assert_eq!(out, "fn main() {}\n");
+}
+
+#[test]
+fn line_numbers_still_work_on_highlighted_code() {
+    let path = scratch("nl.rs", b"fn a() {}\nfn b() {}\n");
+    let (out, _, code) = run(&["--color", "always", "--ascii", "-n", path.to_str().unwrap()]);
+    assert_eq!(code, 0);
+    let numbered: Vec<&str> = out.lines().filter(|l| l.contains(" | ")).collect();
+    assert_eq!(numbered.len(), 2, "{out:?}");
+    assert!(numbered[1].contains('2'), "{out:?}");
+}
